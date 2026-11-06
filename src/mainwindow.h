@@ -220,6 +220,8 @@ public:
     bool hasRunningTask() const;
     /** @brief If a render task is running */
     bool hasRunningRenderTask() const;
+    /** @brief Install the story-editing commands after the monitor actions exist. */
+    void setupStoryEditing();
 
 protected:
     /** @brief Closes the window.
@@ -506,6 +508,18 @@ private Q_SLOTS:
     void slotInsertClipInsert();
     void slotExtractZone();
     void slotLiftZone();
+    void slotApplyStoryShortcuts();
+    void slotApplyClassicShortcuts();
+    void slotStoryAppend();
+    void slotStoryConnect();
+    void slotStoryInsertGap();
+    void slotStoryNudgeLeft();
+    void slotStoryNudgeRight();
+    void slotStorySelectClipRange();
+    void slotToggleStorySkim();
+    void slotToggleStoryRange();
+    void slotToggleStoryMagnetic();
+    void slotStoryCloseGaps();
     void slotCreateRangeMarkerFromZone();
     void slotCreateRangeMarkerFromZoneQuick();
     void slotAddEffect(QAction *result);

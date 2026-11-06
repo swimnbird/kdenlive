@@ -8,5 +8,6 @@ INSTALL (FILES
     editing_vertical.json
     effects.json
     logging.json
+    story.json
 DESTINATION ${KDE_INSTALL_DATADIR}${DATA_INSTALL_PREFIX}/layouts)
 

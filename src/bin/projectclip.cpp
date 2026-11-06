@@ -207,7 +207,7 @@ std::shared_ptr<ProjectClip> ProjectClip::construct(const QString &id, const QDo
 
 ProjectClip::~ProjectClip()
 {
-    if (pCore->closing || pCore->currentDoc()->closing) {
+    if (pCore->closing || (pCore->currentDoc() != nullptr && pCore->currentDoc()->closing)) {
         for (auto &p : m_audioProducers) {
             m_effectStack->removeService(p.second);
         }
@@ -2515,6 +2515,9 @@ bool ProjectClip::selfSoftDelete(Fun &undo, Fun &redo)
         const QUuid uuid = i.key();
         QList<int> instances = i.value();
         if (!instances.isEmpty()) {
+            if (pCore->currentDoc() == nullptr) {
+                continue;
+            }
             auto timeline = pCore->currentDoc()->getTimeline(uuid, pCore->projectItemModel()->closing);
             if (!timeline) {
                 if (pCore->projectItemModel()->closing) {

@@ -436,6 +436,7 @@ void Core::initGUI(const QString &MltPath, const QUrl &Url, const QStringList &c
     connect(m_projectItemModel.get(), &QAbstractItemModel::dataChanged, m_mainWindow->activeBin(), &Bin::slotItemEdited);
 
     m_monitorManager = new MonitorManager(this);
+    m_mainWindow->setupStoryEditing();
     projectManager()->init(Url, clipsToLoad);
     m_mainWindow->init();
 
@@ -581,7 +582,7 @@ void Core::restoreLayout()
     }
     if (KdenliveSettings::kdockLayout().isEmpty() || !KdenliveSettings::kdockLayout().contains(QStringLiteral("KdenliveKDDock"))) {
         // No existing layout, probably first run
-        Q_EMIT loadLayoutById(QStringLiteral("editing"), true);
+        Q_EMIT loadLayoutById(QStringLiteral("story"), true);
     } else {
         Q_EMIT loadLayoutFromData(KdenliveSettings::kdockLayout().toUtf8(), true);
     }

@@ -2778,6 +2778,65 @@ void Bin::slotDuplicateClip()
     }
 }
 
+bool Bin::duplicateSequenceByBinId(const QString &binId)
+{
+    const std::shared_ptr<ProjectClip> currentItem = m_itemModel->getClipByBinID(binId);
+    if (!currentItem || currentItem->clipType() != ClipType::Timeline) {
+        return false;
+    }
+    const QUuid uuid = currentItem->getSequenceUuid();
+    if (m_doc->getTimelinesUuids().contains(uuid)) {
+        m_doc->storeGroups(uuid);
+        pCore->projectManager()->syncTimeline(uuid, true);
+    }
+
+    QTemporaryFile src(QDir::temp().absoluteFilePath(QStringLiteral("XXXXXX.mlt")));
+    src.setAutoRemove(false);
+    if (!src.open()) {
+        pCore->displayMessage(i18n("Could not create temporary file in %1", QDir::temp().absolutePath()), MessageType::ErrorMessage, 500);
+        return false;
+    }
+    currentItem->cloneProducerToFile(src.fileName());
+    QDomDocument doc;
+    if (!Xml::docContentFromFile(doc, src.fileName(), false)) {
+        return false;
+    }
+    QReadLocker lock(&pCore->xmlMutex);
+    const QByteArray result = doc.toString().toUtf8();
+    std::shared_ptr<Mlt::Producer> xmlProd(new Mlt::Producer(pCore->getProjectProfile(), "xml-string", result.constData()));
+    lock.unlock();
+
+    QList<std::shared_ptr<AbstractProjectItem>> siblings;
+    if (auto parentItem = currentItem->parent()) {
+        for (int i = 0; i < parentItem->childCount(); ++i) {
+            if (auto childItem = std::dynamic_pointer_cast<AbstractProjectItem>(parentItem->child(i))) {
+                siblings.append(childItem);
+            }
+        }
+    }
+    const QString parentFolderId = currentItem->parent() ? currentItem->parent()->clipId() : QString();
+    const QString newName = generateDuplicateName(currentItem->name(), siblings);
+    xmlProd->set("kdenlive:clipname", newName.toUtf8().constData());
+    xmlProd->set("kdenlive:sequenceproperties.documentuuid", m_doc->uuid().toString().toUtf8().constData());
+    Mlt::Properties props(xmlProd->get_properties());
+    props.clear("kdenlive:control_uuid");
+
+    Fun undo = []() { return true; };
+    Fun redo = []() { return true; };
+    QString newId;
+    const bool added = m_itemModel->requestAddBinClip(newId, xmlProd, parentFolderId, undo, redo, [this](const QString &id) {
+        auto newClip = m_itemModel->getClipByBinID(id);
+        if (newClip && newClip->clipType() == ClipType::Timeline) {
+            pCore->projectManager()->openTimeline(id, -1, newClip->getSequenceUuid(), -1, true);
+        }
+    });
+    if (!added) {
+        return false;
+    }
+    pCore->pushUndo(undo, redo, i18n("Duplicate sequence"));
+    return true;
+}
+
 void Bin::cleanDocument()
 {
     blockSignals(true);

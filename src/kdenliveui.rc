@@ -220,6 +220,9 @@
       <Action name="show_audio_thumbs"/>
       <Action name="show_markers"/>
       <Action name="snap"/>
+      <Action name="story_skim"/>
+      <Action name="story_magnetic"/>
+      <Action name="story_close_gaps"/>
       <Separator/>
       <Action name="view_zoom_in"/>
       <Action name="view_zoom_out"/>
@@ -233,6 +236,7 @@
       <Separator/>
       <Action name="select_tool"/>
       <Action name="razor_tool"/>
+      <Action name="story_range_tool"/>
       <Action name="spacer_tool"/>
       <Action name="slip_tool"/>
       <Action name="ripple_tool"/>
@@ -341,6 +345,9 @@
       <Separator/>
     </Menu>
     <Menu name="settings">
+      <Action name="story_keyboard_story"/>
+      <Action name="story_keyboard_classic"/>
+      <Separator/>
       <Action name="manage_cache"/>
       <Action name="run_wizard"/>
       <Action name="reset_config"/>

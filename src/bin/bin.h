@@ -379,6 +379,8 @@ public:
     QStringList sequenceReferencedClips(const QUuid &uuid) const;
     /** @brief Define a thumbnail for a sequence clip. */
     void setSequenceThumbnail(const QUuid &uuid, int frame);
+    /** @brief Duplicate a timeline sequence clip. Does not copy source media. */
+    bool duplicateSequenceByBinId(const QString &binId);
     /** @brief When saving or rendering, copy timewarp temporary playlists to the correct folder. */
     void moveTimeWarpToFolder(const QDir sequenceFolder, bool copy);
     /** @brief Create new sequence clip

@@ -243,7 +243,7 @@ public:
     int zoneOut() const { return m_zone.y(); }
     void setZoneIn(int inPoint);
     void setZoneOut(int outPoint);
-    void setZone(const QPoint &zone, bool withUndo = true);
+    Q_INVOKABLE void setZone(const QPoint &zone, bool withUndo = true);
     /** @brief Adjust timeline zone to current selection */
     void setZoneToSelection();
     /** @brief Request a seek operation
