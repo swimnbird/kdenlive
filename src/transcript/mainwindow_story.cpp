@@ -152,6 +152,7 @@ void MainWindow::applyStoryAppearance(bool enabled)
     if (!enabled) {
         KColorSchemeManager::instance()->activateSchemeId(QString());
         applyStoryMetrics(false);
+        applyStoryDockChrome(false);
         return;
     }
     const QString path = storySchemePath();
@@ -171,6 +172,34 @@ void MainWindow::applyStoryAppearance(bool enabled)
         }
     }
     applyStoryMetrics(true);
+    applyStoryDockChrome(true);
+}
+
+void MainWindow::applyStoryDockChrome(bool story)
+{
+    const struct {
+        const char *id;
+        const char *fullText;
+        const char *shortText;
+    } items[] = {
+        {"effect_stack", "Effect/Composition Stack", "Effects"},
+        {"clip_properties", "Clip Properties", "Clip"},
+        {"mixer", "Audio Mixer", "Mixer"},
+    };
+    for (const auto &item : items) {
+        auto *dock = findChild<KDDockWidgets::QtWidgets::DockWidget *>(QLatin1String(item.id));
+        if (dock == nullptr) {
+            continue;
+        }
+        const QString full = i18n(item.fullText);
+        const QString title = story ? i18n(item.shortText) : full;
+        dock->setTitle(title);
+        dock->setToolTip(full);
+        if (QAction *toggle = dock->toggleAction()) {
+            toggle->setText(title);
+            toggle->setToolTip(full);
+        }
+    }
 }
 
 void MainWindow::applyStartupStoryAppearance()

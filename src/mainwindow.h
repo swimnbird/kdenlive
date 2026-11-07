@@ -226,6 +226,8 @@ public:
     void applyStartupStoryPreset();
     /** Apply the selectable story appearance without replacing a saved theme or layout. */
     void applyStartupStoryAppearance();
+    /** Reapply inspector titles after a dock layout restore. */
+    void applyStoryDockChrome(bool story);
 
 protected:
     /** @brief Closes the window.

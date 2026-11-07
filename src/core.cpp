@@ -592,6 +592,7 @@ void Core::restoreLayout()
     if (!KdenliveSettings::showtitlebars()) {
         Q_EMIT pCore->hideBars(true);
     }
+    m_mainWindow->applyStoryDockChrome(KdenliveSettings::storyAppearance() == QLatin1String("story"));
 }
 
 void Core::buildDocks()

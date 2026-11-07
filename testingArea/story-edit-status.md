@@ -107,7 +107,20 @@ Screenshots of `/workspace/build-story/bin/kdenlive --no-welcome` on display `:1
 - 1680×1000: `/opt/cursor/artifacts/story-appearance-1680.png`
 - 1920×1040: `/opt/cursor/artifacts/story-appearance-1920.png`
 
-At 1280 the inspector tab titles are clipped. At 1680 and 1920 the bin, viewer, full-height inspector, and timeline are all readable. The empty viewer is grey because no clip was opened. The earlier "Could not create the video preview window" dialog was not shown on this empty project and was not fixed.
+At 1280 the long inspector titles were clipped. With Story appearance on, those docks use the shorter titles Effects, Clip, and Mixer. The full names stay on the tooltips, and the dock object names are unchanged. Turning the appearance off restores Effect/Composition Stack, Clip Properties, and Audio Mixer. Screenshots of that toggle, still with an empty project and no clip playing:
+
+- Story appearance, 1280×800: `/opt/cursor/artifacts/story-tabs-1280.png`
+- After Settings → Story appearance is unchecked, same layout, light theme, status text "Standard appearance is on.": `/opt/cursor/artifacts/story-tabs-1280-standard.png`
+
+Quit wrote `storyAppearance=standard` and kept `kdockLayout` with `project_bin` and `effect_stack`. The empty viewer is grey. Playback was not exercised.
+
+## macOS runner check
+
+`swimnbird/kdenlive` is public. There was no `.github/workflows` file. A standard `macos-15` runner is arm64, 3 CPUs, 7 GB RAM, and 14 GB SSD, and it is free on a public repository. Larger runners are billed even for public repositories and are not used.
+
+KDE's own macOS package job is not a GitHub runner. `.gitlab-ci.yml` includes `sysadmin/craft-ci` `macos-arm64-qt6.yml`, which runs on one self-hosted GitLab machine tagged `macOS`, with `KDECI_CRAFT_CACHE=/mnt/craft-cache/` and signing enabled. The public cache index is `https://files.kde.org/craft/Qt6/26.10/macos/clang/arm64/`. That cache is the dependency set, not a finished package of this fork. A 14 GB standard runner does not have room to unpack Qt, Frameworks, MLT, and FFmpeg and then link Kdenlive.
+
+A manually dispatched workflow is on this branch: `.github/workflows/macos-arm64-package.yml`. Its first step records `df` and RAM and stops before Craft when free disk is under 18 GiB or RAM is under 10 GiB. It does not call ci-notary and it sets `CodeSigning/Enabled=False`. No `.dmg` was produced.
 
 `QT_QPA_PLATFORM=offscreen /workspace/build-story/bin/storyedittest "*preset*"` — 73 assertions, exit 0.
 

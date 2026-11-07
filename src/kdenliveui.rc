@@ -347,6 +347,7 @@
     <Menu name="settings">
       <Action name="story_keyboard_story"/>
       <Action name="story_keyboard_classic"/>
+      <Action name="story_appearance"/>
       <Separator/>
       <Action name="manage_cache"/>
       <Action name="run_wizard"/>
