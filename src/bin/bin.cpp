@@ -35,6 +35,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "kdenlivesettings.h"
 #include "macros.hpp"
 #include "mainwindow.h"
+#include <QSplitter>
 #include "mediabrowser.h"
 #include "mltcontroller/clipcontroller.h"
 #include "mltcontroller/clippropertiescontroller.h"
@@ -3572,7 +3573,11 @@ void Bin::slotInitView(QAction *action)
     m_itemView->setModel(m_proxyModel.get());
     m_itemView->setSelectionModel(m_proxyModel->selectionModel());
     m_proxyModel->setDynamicSortFilter(true);
-    m_layout->insertWidget(2, m_itemView);
+    if (m_storyBrowser && m_storySplit != nullptr) {
+        m_storySplit->addWidget(m_itemView);
+    } else {
+        m_layout->insertWidget(2, m_itemView);
+    }
     // Reset drag type to normal
     m_itemModel->setDragType(PlaylistState::Disabled);
 
@@ -3673,8 +3678,71 @@ void Bin::slotInitView(QAction *action)
     m_itemView->setEditTriggers(QAbstractItemView::NoEditTriggers); // DoubleClicked);
     m_itemView->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_itemView->setDragDropMode(QAbstractItemView::DragDrop);
-    m_itemView->setAlternatingRowColors(true);
+    m_itemView->setAlternatingRowColors(m_listType != BinIconView);
     m_itemView->setFocus();
+}
+
+void Bin::applyStoryBrowser(bool enabled)
+{
+    if (!m_isMainBin || m_itemModel == nullptr) {
+        return;
+    }
+    m_storyBrowser = enabled;
+    if (!enabled) {
+        if (m_storySplit != nullptr) {
+            m_storySplit->hide();
+            if (m_itemView != nullptr && m_itemView->parentWidget() == m_storySplit) {
+                m_layout->insertWidget(2, m_itemView);
+            }
+        }
+        return;
+    }
+    QAction *iconView = pCore->window()->actionCollection()->action(QStringLiteral("bin_view_mode_icon"));
+    if (iconView != nullptr && m_listType != BinIconView) {
+        slotInitView(iconView);
+    }
+    if (m_storySplit == nullptr) {
+        m_storySplit = new QSplitter(Qt::Horizontal, this);
+        m_storySplit->setAccessibleName(i18n("Library and browser"));
+        m_storyFolders = new QTreeView(m_storySplit);
+        m_storyFolders->setAccessibleName(i18n("Library"));
+        m_storyFolders->setToolTip(i18n("Folders and sequences. Choose one to show its clips as thumbnails."));
+        m_storyFolders->setHeaderHidden(true);
+        m_storyFolders->setMinimumWidth(108);
+        m_storyFolders->setMaximumWidth(180);
+        m_storyFolders->setModel(m_proxyModel.get());
+        for (int column = 1; column < m_proxyModel->columnCount(); ++column) {
+            m_storyFolders->hideColumn(column);
+        }
+        connect(m_storyFolders, &QTreeView::clicked, this, [this](const QModelIndex &proxyIndex) {
+            if (!proxyIndex.isValid() || m_itemView == nullptr || m_listType != BinIconView) {
+                return;
+            }
+            const QModelIndex sourceIndex = m_proxyModel->mapToSource(proxyIndex);
+            std::shared_ptr<AbstractProjectItem> item = m_itemModel->getBinItemByIndex(sourceIndex);
+            if (!item) {
+                return;
+            }
+            if (item->itemType() == AbstractProjectItem::FolderItem || item->itemType() == AbstractProjectItem::SubSequenceItem) {
+                m_itemView->setRootIndex(proxyIndex);
+                if (m_upAction != nullptr) {
+                    m_upAction->setEnabled(item->clipId() != QLatin1String("-1"));
+                }
+            }
+        });
+        m_layout->insertWidget(2, m_storySplit);
+    }
+    if (m_itemView != nullptr && m_itemView->parentWidget() != m_storySplit) {
+        m_storySplit->addWidget(m_itemView);
+    }
+    m_storySplit->setCollapsible(0, false);
+    m_storySplit->setStretchFactor(0, 0);
+    m_storySplit->setStretchFactor(1, 1);
+    m_storySplit->setSizes({140, 480});
+    m_storySplit->show();
+    if (m_slider != nullptr && m_slider->value() < 6) {
+        m_slider->setValue(6);
+    }
 }
 
 void Bin::adjustHeaderSize()

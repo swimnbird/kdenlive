@@ -341,17 +341,21 @@ TEST_CASE("Story layout keeps a full-width timeline under the viewer", "[StoryLa
     const QJsonArray rows = tree.value(QStringLiteral("children")).toArray();
     REQUIRE(rows.size() == 2);
     const QJsonObject top = rows.at(0).toObject();
-    const QJsonObject timeline = rows.at(1).toObject();
+    const QJsonObject bottom = rows.at(1).toObject();
     CHECK(top.value(QStringLiteral("orientation")).toInt() == 1);
-    CHECK(timeline.value(QStringLiteral("guestId")).toString() == QStringLiteral("13767"));
+    CHECK(bottom.value(QStringLiteral("orientation")).toInt() == 1);
     const QJsonArray topChildren = top.value(QStringLiteral("children")).toArray();
+    const QJsonArray bottomChildren = bottom.value(QStringLiteral("children")).toArray();
     REQUIRE(topChildren.size() == 3);
+    REQUIRE(bottomChildren.size() == 2);
     const QString viewerId = topChildren.at(1).toObject().value(QStringLiteral("guestId")).toString();
     const QString inspectorId = topChildren.at(2).toObject().value(QStringLiteral("guestId")).toString();
+    const QString timelineId = bottomChildren.at(0).toObject().value(QStringLiteral("guestId")).toString();
+    const QString transitionsId = bottomChildren.at(1).toObject().value(QStringLiteral("guestId")).toString();
     CHECK(frames.value(viewerId).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("projectmonitor")));
     CHECK(frames.value(inspectorId).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("effect_stack")));
-    CHECK(frames.value(QStringLiteral("13767")).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("timeline")));
-    const double timelineShare = timeline.value(QStringLiteral("sizingInfo")).toObject().value(QStringLiteral("percentageWithinParent")).toDouble();
-    CHECK(timelineShare > 0.35);
-    CHECK(timelineShare < 0.55);
+    CHECK(frames.value(timelineId).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("timeline")));
+    CHECK(frames.value(transitionsId).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("transition_list")));
+    const double timelineShare = bottomChildren.at(0).toObject().value(QStringLiteral("sizingInfo")).toObject().value(QStringLiteral("percentageWithinParent")).toDouble();
+    CHECK(timelineShare > 0.6);
 }

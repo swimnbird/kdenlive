@@ -38,6 +38,7 @@ class EffectStackModel;
 class InvalidDialog;
 class TranscodeSeek;
 class KdenliveDoc;
+class QSplitter;
 class KSelectAction;
 class KeyframeModelList;
 class TagWidget;
@@ -288,6 +289,8 @@ public:
     void blockBin(bool block);
     void doMoveFolder(const QString &id, const QString &newParentId);
     void setupGeneratorMenu();
+    /** @brief Story workspace: folder sidebar beside the thumbnail browser. */
+    void applyStoryBrowser(bool enabled);
     QMenu *addClipMenu() const;
     void setReadyCallBack(const std::function<void(const QString &)> &cb);
     void setSuggestedDuration(int duration);
@@ -584,6 +587,9 @@ private:
     bool m_isMainBin;
     std::shared_ptr<ProjectItemModel> m_itemModel;
     QAbstractItemView *m_itemView;
+    QSplitter *m_storySplit{nullptr};
+    QTreeView *m_storyFolders{nullptr};
+    bool m_storyBrowser{false};
     BinItemDelegate *m_binTreeViewDelegate;
     BinListItemDelegate *m_binListViewDelegate;
     std::unique_ptr<ProjectSortProxyModel> m_proxyModel;

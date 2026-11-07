@@ -180,8 +180,8 @@ void MainWindow::applyStoryMetrics(bool story)
 {
     const QSize size(22, 22);
     if (KToolBar *bar = toolBar()) {
-        bar->setIconSize(size);
-        bar->setToolButtonStyle(story ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
+        bar->setIconSize(QSize(20, 20));
+        bar->setToolButtonStyle(Qt::ToolButtonIconOnly);
         bar->setStyleSheet(story ? QStringLiteral("QToolBar { spacing: 6px; padding: 2px 4px; }") : QString());
     }
     if (m_timelineToolBar != nullptr) {
@@ -221,6 +221,9 @@ void MainWindow::applyStoryAppearance(bool enabled)
         KColorSchemeManager::instance()->activateSchemeId(QString());
         applyStoryMetrics(false);
         applyStoryDockChrome(false);
+        if (pCore->bin() != nullptr) {
+            pCore->bin()->applyStoryBrowser(false);
+        }
         return;
     }
     const QString path = storySchemePath();
@@ -241,6 +244,9 @@ void MainWindow::applyStoryAppearance(bool enabled)
     }
     applyStoryMetrics(true);
     applyStoryDockChrome(true);
+    if (pCore->bin() != nullptr) {
+        pCore->bin()->applyStoryBrowser(true);
+    }
 }
 
 void MainWindow::applyStoryDockChrome(bool story)
@@ -287,6 +293,9 @@ void MainWindow::applyStoryDockChrome(bool story)
         action->blockSignals(true);
         action->setChecked(dock->isOpen());
         action->blockSignals(false);
+    }
+    if (story && pCore->bin() != nullptr) {
+        pCore->bin()->applyStoryBrowser(true);
     }
 }
 
