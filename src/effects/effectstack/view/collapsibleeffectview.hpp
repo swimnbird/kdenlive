@@ -72,6 +72,8 @@ public:
     void sendStandardCommand(int command);
     /** @brief Get the row of this effect in the stack */
     int getEffectRow() const;
+    /** @brief Charcoal body and a short Transform title while Story appearance is on. */
+    void applyStoryChrome(bool story);
     /** @brief Get a pixmap for the drag operation on this effect */
     QPixmap getDragPixmap() const;
     /** @brief Get the asset id */

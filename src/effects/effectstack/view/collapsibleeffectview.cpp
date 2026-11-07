@@ -272,7 +272,11 @@ CollapsibleEffectView::CollapsibleEffectView(const QString &effectName, const st
     title->setText(effectName);
     auto ft = font();
     ft.setBold(true);
+    if (KdenliveSettings::storyAppearance() == QLatin1String("story")) {
+        ft.setPointSizeF(12);
+    }
     title->setFont(ft);
+    applyStoryChrome(KdenliveSettings::storyAppearance() == QLatin1String("story"));
 
     m_view = new AssetParameterView(this);
     const std::shared_ptr<AssetParameterModel> effectParamModel = std::static_pointer_cast<AssetParameterModel>(effectModel);
@@ -537,6 +541,63 @@ QDomElement CollapsibleEffectView::effectForSave() const
 bool CollapsibleEffectView::isActive() const
 {
     return m_isActive;
+}
+
+void CollapsibleEffectView::applyStoryChrome(bool story)
+{
+    if (story) {
+        m_bgColor = QColor(0x1c, 0x1c, 0x1f);
+        m_bgColorTitle = QColor(0x2a, 0x2a, 0x2e);
+        m_hoverColor = QColor(0x26, 0x26, 0x2a);
+        m_hoverColorTitle = QColor(0x32, 0x32, 0x36);
+        m_activeColor = QColor(0x22, 0x22, 0x26);
+        m_activeColorTitle = QColor(0x2c, 0x2c, 0x30);
+    } else {
+        const QPalette base = palette();
+        KColorScheme scheme(QApplication::palette().currentColorGroup(), KColorScheme::View);
+        m_bgColor = base.color(QPalette::Active, QPalette::Window);
+        m_bgColorTitle = base.color(QPalette::Active, QPalette::AlternateBase);
+        const QColor selectedBg = scheme.decoration(KColorScheme::FocusColor).color();
+        m_hoverColor = KColorUtils::mix(m_bgColor, selectedBg, 0.07);
+        m_hoverColorTitle = KColorUtils::mix(m_bgColor, selectedBg, 0.1);
+        const QColor hoverColor = scheme.decoration(KColorScheme::HoverColor).color();
+        m_activeColor = KColorUtils::mix(m_bgColor, hoverColor, 0.2);
+        m_activeColorTitle = KColorUtils::mix(m_bgColor, hoverColor, 0.3);
+    }
+    QPalette pal = palette();
+    pal.setColor(QPalette::Active, QPalette::Base, m_isActive ? m_activeColor : m_bgColor);
+    decoframe->setPalette(pal);
+    pal.setColor(QPalette::Active, QPalette::Base, m_isActive ? m_activeColorTitle : m_bgColorTitle);
+    frame->setPalette(pal);
+    if (m_model && m_model->getAssetId() == QLatin1String("qtblend") && title != nullptr) {
+        const QString full = EffectsRepository::get()->getName(QStringLiteral("qtblend"));
+        title->setToolTip(full);
+        title->setText(story ? i18n("Transform") : full);
+        QFont heading = title->font();
+        heading.setBold(true);
+        if (story) {
+            heading.setPointSizeF(12);
+        }
+        title->setFont(heading);
+        title->setMinimumWidth(story ? title->fontMetrics().horizontalAdvance(title->text()) + 12 : 0);
+    }
+    if (auto *row = qobject_cast<QHBoxLayout *>(frame->layout())) {
+        for (int i = 0; i < row->count(); ++i) {
+            QLayoutItem *item = row->itemAt(i);
+            if (QSpacerItem *spacer = item->spacerItem()) {
+                if (story) {
+                    spacer->changeSize(0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+                } else {
+                    spacer->changeSize(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
+                }
+            }
+        }
+        const int titleIndex = row->indexOf(title);
+        if (titleIndex >= 0) {
+            row->setStretch(titleIndex, story ? 1 : 0);
+        }
+        row->invalidate();
+    }
 }
 
 bool CollapsibleEffectView::isEnabled() const

@@ -31,6 +31,10 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <KSharedConfig>
 #include <KToolBar>
 #include "kddocksetup.h"
+#include "assets/view/assetparameterview.hpp"
+#include "effects/effectstack/view/collapsibleeffectview.hpp"
+#include "widgets/doublewidget.h"
+#include "widgets/dragvalue.h"
 
 #include <QAction>
 #include <QApplication>
@@ -41,6 +45,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QFile>
 #include <QFormLayout>
 #include <QLineEdit>
+#include <QSizePolicy>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QToolButton>
@@ -78,11 +83,9 @@ QString storyControlStyle()
         "QSpinBox, QDoubleSpinBox {"
         "  background: #1c1c1f;"
         "  color: #f0f0f2;"
-        "  border: 1px solid #3e3e44;"
+        "  border: 1px solid #3a3a40;"
         "  border-radius: 5px;"
         "  padding: 0px;"
-        "  min-height: 28px;"
-        "  min-width: 76px;"
         "  font-size: 12pt;"
         "  qproperty-alignment: AlignCenter;"
         "}"
@@ -120,6 +123,12 @@ void applyStoryInspectorMetrics(QWidget *root, bool story)
     if (root == nullptr) {
         return;
     }
+    const auto effects = root->findChildren<CollapsibleEffectView *>();
+    for (CollapsibleEffectView *effect : effects) {
+        effect->applyStoryChrome(story);
+    }
+    const auto parameterViews = root->findChildren<AssetParameterView *>();
+    constexpr int fieldHeight = 28;
     const auto spins = root->findChildren<QAbstractSpinBox *>();
     for (QAbstractSpinBox *spin : spins) {
         if (story) {
@@ -128,9 +137,53 @@ void applyStoryInspectorMetrics(QWidget *root, bool story)
                 edit->setAlignment(Qt::AlignCenter);
                 edit->setFrame(false);
             }
-            spin->setMinimumHeight(28);
-        } else if (spin->minimumHeight() == 28) {
+            // Height is applied with the parent row. A stylesheet min-height alone
+            // paints outside DragValue's fixed row and collides with the toolbar.
+            const int textWidth = qMax(72, spin->fontMetrics().horizontalAdvance(QStringLiteral("0.00 %")) + 12);
+            spin->setMinimumWidth(textWidth);
+            spin->setMaximumWidth(textWidth + 4);
+            spin->setMinimumHeight(fieldHeight);
+            spin->setMaximumHeight(fieldHeight);
+            spin->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        } else {
+            spin->setMinimumWidth(0);
+            spin->setMaximumWidth(QWIDGETSIZE_MAX);
             spin->setMinimumHeight(0);
+            spin->setMaximumHeight(QWIDGETSIZE_MAX);
+        }
+    }
+    const auto sliders = root->findChildren<QWidget *>(QStringLiteral("draggLabel"));
+    for (QWidget *slider : sliders) {
+        if (story) {
+            slider->setMinimumWidth(36);
+            slider->setFixedHeight(fieldHeight);
+            slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        } else {
+            slider->setMinimumWidth(0);
+            slider->setMaximumHeight(QWIDGETSIZE_MAX);
+        }
+    }
+    const auto drags = root->findChildren<DragValue *>();
+    for (DragValue *drag : drags) {
+        if (story) {
+            drag->setMinimumHeight(fieldHeight);
+            drag->setMaximumHeight(fieldHeight);
+            drag->setFixedHeight(fieldHeight);
+        } else if (drag->maximumHeight() == fieldHeight) {
+            drag->setMinimumHeight(0);
+            drag->setMaximumHeight(QWIDGETSIZE_MAX);
+        }
+    }
+    const auto doubles = root->findChildren<DoubleWidget *>();
+    for (DoubleWidget *field : doubles) {
+        if (story) {
+            field->setMinimumHeight(fieldHeight);
+            field->setMaximumHeight(fieldHeight);
+            field->setFixedHeight(fieldHeight);
+            field->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
+        } else if (field->maximumHeight() == fieldHeight) {
+            field->setMinimumHeight(0);
+            field->setMaximumHeight(QWIDGETSIZE_MAX);
         }
     }
     const auto forms = root->findChildren<QFormLayout *>();
@@ -139,17 +192,34 @@ void applyStoryInspectorMetrics(QWidget *root, bool story)
             if (!form->property("storyFormSaved").toBool()) {
                 form->setProperty("storyH", form->horizontalSpacing());
                 form->setProperty("storyV", form->verticalSpacing());
+                form->setProperty("storyWrap", int(form->rowWrapPolicy()));
                 form->setProperty("storyFormSaved", true);
             }
             form->setHorizontalSpacing(10);
-            form->setVerticalSpacing(6);
+            form->setVerticalSpacing(8);
             form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            form->setRowWrapPolicy(QFormLayout::WrapLongRows);
+            form->activate();
+            form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
         } else if (form->property("storyFormSaved").toBool()) {
             form->setHorizontalSpacing(form->property("storyH").toInt());
             form->setVerticalSpacing(form->property("storyV").toInt());
+            form->setRowWrapPolicy(static_cast<QFormLayout::RowWrapPolicy>(form->property("storyWrap").toInt()));
             form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
             form->setProperty("storyFormSaved", false);
         }
+    }
+    for (AssetParameterView *view : parameterViews) {
+        if (view->layout() == nullptr) {
+            continue;
+        }
+        view->layout()->activate();
+        const int height = view->layout()->minimumSize().height();
+        view->setMinimumHeight(height);
+        view->setMaximumHeight(QWIDGETSIZE_MAX);
+    }
+    for (CollapsibleEffectView *effect : effects) {
+        effect->updateHeight();
     }
 }
 
