@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Story editing status
 
-Result: **incomplete**. The official AT-SPI driver now starts and can see the real `kdenlive` window. Import of the speech fixture reached the clip monitor. The Transcribe button stayed disabled, and a preview-window error blocked the rest of the click path.
+Result: **incomplete**. The editor now has a selectable Story appearance and Story layout. That does not close the speech-editor acceptance. The Transcribe button stayed disabled, and the video-preview error is still unresolved.
 
 ## Snap model
 
@@ -82,4 +82,62 @@ TEST_WITH_KWIN_WAYLAND=0 TEST_WITH_VIDEO_RECORDER=0 TEST_WITH_CLEAN_HOME=0 \
   selenium-webdriver-at-spi-run python3 /workspace/testingArea/story_atspi_test.py
 ```
 
-No package was built.
+No Linux release package was built. A native macOS package was not produced. See the packaging section.
+
+## Story appearance
+
+References, used for layout and hierarchy only. No Apple artwork, icons, or product name is in the interface.
+
+- [Final Cut Pro for Mac interface](https://support.apple.com/guide/final-cut-pro/final-cut-pro-interface-ver92bd100a/mac): libraries and browser on the left, viewer for playback, magnetic timeline along the bottom.
+- [Arrange the main window](https://support.apple.com/guide/final-cut-pro/arrange-the-main-window-ver2a27194eb/mac): browser, viewer, and inspector can be shown together; the inspector can use the full height.
+- [Change the workspace layout](https://support.apple.com/en-ae/guide/final-cut-pro/ver6b3626147/mac): workspaces are selectable and do not replace the editor.
+
+What changed:
+
+- `data/color-schemes/StoryCharcoal.colors` is a KDE color scheme. Window background is 32,32,34 and window text is 230,230,232. Selection is 70,108,148 with text 245,246,247. It is installed as a normal color scheme and chosen with `KColorSchemeManager`.
+- Settings → Story editing → Story appearance toggles it and sets the main and timeline toolbars to 16 px icons. The usual theme menu still selects other schemes.
+- On a profile with no saved dock layout and no saved color scheme, the first run selects Story appearance. A saved layout or a saved scheme is left alone.
+- `data/layouts/story.json` places the project bin on the upper left, with the speech editor, media browser, and effects as tabs. The project monitor is the center viewer, with the clip monitor as a tab. The effect stack fills the right side, with clip properties and the audio mixer as tabs. The timeline fills the lower left, with subtitles as a tab. Editing, Audio, Effects, and Color layouts are unchanged.
+- On macOS only, the bundle name is Kdenlive Story and the identifier is `org.kde.kdenlive.story`. The `.kdenlive` association rank is Alternate, so this build does not claim the existing app's documents.
+
+Screenshots of `/workspace/build-story/bin/kdenlive --no-welcome` on display `:1`, fresh config, Story Charcoal saved as `ColorScheme`:
+
+- Before, lighter default docks: `/opt/cursor/artifacts/kdenlive-main-window.png`
+- 1280×800: `/opt/cursor/artifacts/story-appearance-1280.png`
+- 1680×1000: `/opt/cursor/artifacts/story-appearance-1680.png`
+- 1920×1040: `/opt/cursor/artifacts/story-appearance-1920.png`
+
+At 1280 the inspector tab titles are clipped. At 1680 and 1920 the bin, viewer, full-height inspector, and timeline are all readable. The empty viewer is grey because no clip was opened. The earlier "Could not create the video preview window" dialog was not shown on this empty project and was not fixed.
+
+`QT_QPA_PLATFORM=offscreen /workspace/build-story/bin/storyedittest "*preset*"` — 73 assertions, exit 0.
+
+## macOS package, not built
+
+This cloud environment is Linux x86_64. It cannot produce an arm64 Mach-O `.app` or `.dmg`. There is no connected Mac worker, and none was started. The Linux `kdenlive` binary must not be copied onto the Mac.
+
+Official route, from `dev-docs/build.md`, `dev-docs/packaging.md`, and `.gitlab-ci.yml`:
+
+- KDE Craft on macOS: `craft --package kdenlive`, output under `CraftRoot/tmp`. Setup: https://community.kde.org/Craft
+- Blueprint: https://invent.kde.org/packaging/craft-blueprints-kde/-/blob/master/kde/kdemultimedia/kdenlive/kdenlive.py
+- GitLab CI job `craft_macos_qt6_arm64` from `sysadmin/craft-ci` `gitlab-templates/macos-arm64-qt6.yml`, platform `macos-arm-clang`. That job runs on KDE's GitLab, then calls `ci-notary-service/publishbuild.py`. Do not trigger that publish step. This GitHub fork has no macOS workflow.
+
+The stock blueprint clones `invent.kde.org`. A package of this fork has to point Craft at `https://github.com/swimnbird/kdenlive` branch `cursor/story-editing-70d9` and the commit that contains these notes. `craft kdenlive` without that override builds upstream.
+
+Minimum for a native arm64 build: an Apple Silicon Mac, macOS 13 or newer (`LSMinimumSystemVersion` is 13.0.0; 15.7.3 qualifies), Xcode/clang, CMake, and a Craft root with Qt 6, the KDE Frameworks 6 tiers listed in the blueprint, MLT, FFmpeg, and OpenTimelineIO. About 10 GiB free is not enough for that from-scratch prefix. Homebrew alone does not replace Craft here.
+
+If a `.dmg` is built later, record architecture `arm64`, minimum OS 13.0, and that it is unsigned and not notarized. No Apple ID was used. Install it beside the existing app, for example as a separate "Kdenlive Story" bundle, and do not replace `/Applications/kdenlive.app`.
+
+### Distribution obligations, before any package is handed over
+
+The program is `GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL`. A recipient may use either. The KDE alternative is `LICENSES/LicenseRef-KDE-Accepted-GPL.txt`: GPL version 3 or a later version accepted by KDE e.V. as a Section 14 proxy. `COPYING` is the GPL-3 text. Other component notices live under `LICENSES/` (LGPL, BSD, MIT, Apache, CC).
+
+Before a modified binary is conveyed:
+
+- Say that it is modified and is not a KDE release, and give the date and the exact commit.
+- Keep the same license. Do not add further restrictions.
+- Ship `COPYING` and `LICENSES/` with the bundle, including the notices for Qt, KDE Frameworks, MLT, and FFmpeg that the Craft package already collects.
+- Corresponding source is the public commit on `https://github.com/swimnbird/kdenlive` branch `cursor/story-editing-70d9`. The binary and that commit have to match. GPL section 6 requires the source to be offered with a binary; a public commit of that exact tree meets that if the repository stays available.
+- Do not include Apple trademarks, Final Cut assets, or a signature made with credentials this run does not have.
+- Do not upload it to download.kde.org or mark it as a public release.
+
+No checksum, because no `.app` or `.dmg` was produced.

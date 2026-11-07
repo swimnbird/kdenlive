@@ -224,6 +224,8 @@ public:
     void setupStoryEditing();
     /** Apply the story preset after the standard actions exist. */
     void applyStartupStoryPreset();
+    /** Apply the selectable story appearance without replacing a saved theme or layout. */
+    void applyStartupStoryAppearance();
 
 protected:
     /** @brief Closes the window.
@@ -263,6 +265,9 @@ private:
     void updateDockMenu();
     /** @brief Update the audio thumbnails action icon based on current zoom and toggle state */
     void updateAudioWaveformActionIcon();
+    void applyStoryAppearance(bool enabled);
+    void applyStoryMetrics(bool compact);
+    QString storySchemePath() const;
 
     OtioExport *m_otioExport{nullptr};
     OtioImport *m_otioImport{nullptr};
@@ -521,6 +526,7 @@ private Q_SLOTS:
     void slotToggleStorySkim();
     void slotToggleStoryRange();
     void slotToggleStoryMagnetic();
+    void slotToggleStoryAppearance(bool enabled);
     void slotStoryCloseGaps();
     void slotCreateRangeMarkerFromZone();
     void slotCreateRangeMarkerFromZoneQuick();

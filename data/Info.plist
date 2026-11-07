@@ -67,9 +67,9 @@
         <key>CFBundleTypeRole</key>
         <string>Editor</string>
         <key>LSHandlerRank</key>
-        <string>Owner</string>
+        <string>Alternate</string>
         <key>LSIsAppleDefaultForType</key>
-        <true/>
+        <false/>
         </dict>
         </array>
 </dict>

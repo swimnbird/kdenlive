@@ -1,7 +1,7 @@
 {
   "kdenliveInfo": [
     {
-      "layoutVersion": 1,
+      "layoutVersion": 2,
       "displayName": "Story",
       "default": true,
       "vertical": false,
@@ -19,13 +19,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 2,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 1,
         "wasFloating": false
       },
@@ -41,13 +35,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 11,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": -1,
         "wasFloating": false
       },
@@ -63,13 +51,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 2,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 0,
         "wasFloating": false
       },
@@ -85,13 +67,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 3,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 3,
         "wasFloating": false
       },
@@ -107,13 +83,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 12,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 2,
         "wasFloating": false
       },
@@ -129,13 +99,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 4,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 2,
         "wasFloating": false
       },
@@ -151,13 +115,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 12,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 2,
         "wasFloating": false
       },
@@ -173,13 +131,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 2,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 2,
         "wasFloating": false
       },
@@ -195,13 +147,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 0,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 0,
         "wasFloating": false
       },
@@ -217,13 +163,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 1,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 0,
         "wasFloating": false
       },
@@ -239,13 +179,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 3,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 0,
         "wasFloating": false
       },
@@ -261,13 +195,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 4,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 1,
         "wasFloating": false
       },
@@ -283,13 +211,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 4,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 4,
         "wasFloating": false
       },
@@ -305,13 +227,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 9,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 0,
         "wasFloating": false
       },
@@ -327,13 +243,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 10,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 0,
         "wasFloating": false
       },
@@ -349,13 +259,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 12,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 1,
         "wasFloating": false
       },
@@ -371,13 +275,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 2,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": -1,
         "wasFloating": false
       },
@@ -393,13 +291,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 2,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": -1,
         "wasFloating": false
       },
@@ -415,13 +307,7 @@
           "y": 70
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 2,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 2,
         "wasFloating": false
       },
@@ -437,13 +323,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 12,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 2,
         "wasFloating": false
       },
@@ -459,13 +339,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 6,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 0,
         "wasFloating": false
       },
@@ -481,13 +355,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 5,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 0,
         "wasFloating": false
       },
@@ -503,13 +371,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 7,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 0,
         "wasFloating": false
       },
@@ -525,13 +387,7 @@
           "y": 0
         },
         "lastOverlayedGeometries": [],
-        "placeholders": [
-          {
-            "isFloatingWindow": false,
-            "itemIndex": 8,
-            "mainWindowUniqueName": "KdenliveKDDock"
-          }
-        ],
+        "placeholders": [],
         "tabIndex": 0,
         "wasFloating": false
       },
@@ -539,19 +395,13 @@
     }
   ],
   "closedDockWidgets": [
-    "clip_properties",
     "library",
-    "subtitles",
     "timeremap",
     "markers",
     "screengrab",
     "audiospectrum",
     "notes_widget",
-    "media_browser",
     "onlineresources",
-    "effect_stack",
-    "effect_list",
-    "transition_list",
     "undo_history",
     "vectorscope",
     "waveform",
@@ -571,73 +421,18 @@
       "isVisible": true,
       "multiSplitterLayout": {
         "frames": {
-          "13767": {
-            "currentTabIndex": 0,
-            "dockWidgets": [
-              "timeline"
-            ],
-            "geometry": {
-              "height": 610,
-              "width": 1524,
-              "x": 0,
-              "y": 439
-            },
-            "id": "13767",
-            "isNull": false,
-            "mainWindowUniqueName": "KdenliveKDDock",
-            "objectName": "timeline",
-            "options": 0
-          },
-          "13799": {
-            "currentTabIndex": 0,
-            "dockWidgets": [
-              "clipmonitor",
-              "library"
-            ],
-            "geometry": {
-              "height": 439,
-              "width": 660,
-              "x": 594,
-              "y": 0
-            },
-            "id": "13799",
-            "isNull": false,
-            "mainWindowUniqueName": "KdenliveKDDock",
-            "objectName": "clipmonitor",
-            "options": 0
-          },
-          "13862": {
-            "currentTabIndex": 0,
-            "dockWidgets": [
-              "mixer",
-              "effect_stack",
-              "timeremap",
-              "subtitles"
-            ],
-            "geometry": {
-              "height": 610,
-              "width": 390,
-              "x": 1524,
-              "y": 439
-            },
-            "id": "13862",
-            "isNull": false,
-            "mainWindowUniqueName": "KdenliveKDDock",
-            "objectName": "mixer",
-            "options": 0
-          },
           "13999": {
             "currentTabIndex": 0,
             "dockWidgets": [
               "project_bin",
-              "transition_list",
+              "textedit",
+              "media_browser",
               "effect_list",
-              "clip_properties",
-              "undo_history"
+              "transition_list"
             ],
             "geometry": {
-              "height": 439,
-              "width": 594,
+              "height": 546,
+              "width": 430,
               "x": 0,
               "y": 0
             },
@@ -651,19 +446,55 @@
             "currentTabIndex": 0,
             "dockWidgets": [
               "projectmonitor",
-              "textedit",
-              "notes_widget"
+              "clipmonitor"
             ],
             "geometry": {
-              "height": 439,
-              "width": 660,
-              "x": 1254,
+              "height": 546,
+              "width": 1064,
+              "x": 430,
               "y": 0
             },
             "id": "14179",
             "isNull": false,
             "mainWindowUniqueName": "KdenliveKDDock",
             "objectName": "projectmonitor",
+            "options": 0
+          },
+          "13767": {
+            "currentTabIndex": 0,
+            "dockWidgets": [
+              "timeline",
+              "subtitles"
+            ],
+            "geometry": {
+              "height": 503,
+              "width": 1494,
+              "x": 0,
+              "y": 546
+            },
+            "id": "13767",
+            "isNull": false,
+            "mainWindowUniqueName": "KdenliveKDDock",
+            "objectName": "timeline",
+            "options": 0
+          },
+          "13862": {
+            "currentTabIndex": 0,
+            "dockWidgets": [
+              "effect_stack",
+              "clip_properties",
+              "mixer"
+            ],
+            "geometry": {
+              "height": 1049,
+              "width": 420,
+              "x": 1494,
+              "y": 0
+            },
+            "id": "13862",
+            "isNull": false,
+            "mainWindowUniqueName": "KdenliveKDDock",
+            "objectName": "effect_stack",
             "options": 0
           }
         },
@@ -674,89 +505,25 @@
                 {
                   "children": [
                     {
-                      "isContainer": false,
-                      "isVisible": false,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 440,
-                          "width": 95,
-                          "x": 0,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 524287,
-                          "width": 524279
-                        },
-                        "minSize": {
-                          "height": 90,
-                          "width": 80
-                        },
-                        "percentageWithinParent": 0.0
-                      }
-                    },
-                    {
-                      "isContainer": false,
-                      "isVisible": false,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 440,
-                          "width": 103,
-                          "x": 0,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 524265,
-                          "width": 524270
-                        },
-                        "minSize": {
-                          "height": 90,
-                          "width": 80
-                        },
-                        "percentageWithinParent": 0.0
-                      }
-                    },
-                    {
                       "guestId": "13999",
                       "isContainer": false,
                       "isVisible": true,
                       "sizingInfo": {
                         "geometry": {
-                          "height": 439,
-                          "width": 594,
+                          "height": 546,
+                          "width": 430,
                           "x": 0,
                           "y": 0
                         },
                         "maxSizeHint": {
-                          "height": 524317,
-                          "width": 524327
+                          "height": 524287,
+                          "width": 524287
                         },
                         "minSize": {
-                          "height": 267,
-                          "width": 141
+                          "height": 220,
+                          "width": 180
                         },
-                        "percentageWithinParent": 0.3103448275862069
-                      }
-                    },
-                    {
-                      "guestId": "13799",
-                      "isContainer": false,
-                      "isVisible": true,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 439,
-                          "width": 660,
-                          "x": 594,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 524317,
-                          "width": 524293
-                        },
-                        "minSize": {
-                          "height": 230,
-                          "width": 326
-                        },
-                        "percentageWithinParent": 0.3448275862068966
+                        "percentageWithinParent": 0.2878179384203481
                       }
                     },
                     {
@@ -765,30 +532,9 @@
                       "isVisible": true,
                       "sizingInfo": {
                         "geometry": {
-                          "height": 439,
-                          "width": 660,
-                          "x": 1254,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 524317,
-                          "width": 524293
-                        },
-                        "minSize": {
-                          "height": 295,
-                          "width": 394
-                        },
-                        "percentageWithinParent": 0.3448275862068966
-                      }
-                    },
-                    {
-                      "isContainer": false,
-                      "isVisible": false,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 440,
-                          "width": 82,
-                          "x": 1832,
+                          "height": 546,
+                          "width": 1064,
+                          "x": 430,
                           "y": 0
                         },
                         "maxSizeHint": {
@@ -796,115 +542,10 @@
                           "width": 524287
                         },
                         "minSize": {
-                          "height": 90,
-                          "width": 80
+                          "height": 220,
+                          "width": 320
                         },
-                        "percentageWithinParent": 0.0
-                      }
-                    },
-                    {
-                      "isContainer": false,
-                      "isVisible": false,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 440,
-                          "width": 167,
-                          "x": 1747,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 524287,
-                          "width": 524251
-                        },
-                        "minSize": {
-                          "height": 90,
-                          "width": 80
-                        },
-                        "percentageWithinParent": 0.0
-                      }
-                    },
-                    {
-                      "isContainer": false,
-                      "isVisible": false,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 440,
-                          "width": 92,
-                          "x": 1822,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 524287,
-                          "width": 524287
-                        },
-                        "minSize": {
-                          "height": 90,
-                          "width": 80
-                        },
-                        "percentageWithinParent": 0.0
-                      }
-                    },
-                    {
-                      "isContainer": false,
-                      "isVisible": false,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 440,
-                          "width": 81,
-                          "x": 1833,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 524287,
-                          "width": 524287
-                        },
-                        "minSize": {
-                          "height": 90,
-                          "width": 80
-                        },
-                        "percentageWithinParent": 0.0
-                      }
-                    },
-                    {
-                      "isContainer": false,
-                      "isVisible": false,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 508,
-                          "width": 478,
-                          "x": 1074,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 523905,
-                          "width": 523960
-                        },
-                        "minSize": {
-                          "height": 90,
-                          "width": 80
-                        },
-                        "percentageWithinParent": 0.0
-                      }
-                    },
-                    {
-                      "isContainer": false,
-                      "isVisible": false,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 508,
-                          "width": 378,
-                          "x": 1536,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 524174,
-                          "width": 524011
-                        },
-                        "minSize": {
-                          "height": 90,
-                          "width": 80
-                        },
-                        "percentageWithinParent": 0.0
+                        "percentageWithinParent": 0.7121820615796519
                       }
                     }
                   ],
@@ -913,88 +554,42 @@
                   "orientation": 1,
                   "sizingInfo": {
                     "geometry": {
-                      "height": 439,
-                      "width": 1914,
+                      "height": 546,
+                      "width": 1494,
                       "x": 0,
                       "y": 0
                     },
                     "maxSizeHint": {
-                      "height": 524317,
-                      "width": 1572913
+                      "height": 16777215,
+                      "width": 16777215
                     },
                     "minSize": {
-                      "height": 295,
-                      "width": 861
+                      "height": 220,
+                      "width": 500
                     },
-                    "percentageWithinParent": 0.4184938036224976
+                    "percentageWithinParent": 0.5204957102001907
                   }
                 },
                 {
-                  "children": [
-                    {
-                      "guestId": "13767",
-                      "isContainer": false,
-                      "isVisible": true,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 610,
-                          "width": 1524,
-                          "x": 0,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 524287,
-                          "width": 524287
-                        },
-                        "minSize": {
-                          "height": 90,
-                          "width": 80
-                        },
-                        "percentageWithinParent": 0.7962382445141066
-                      }
-                    },
-                    {
-                      "guestId": "13862",
-                      "isContainer": false,
-                      "isVisible": true,
-                      "sizingInfo": {
-                        "geometry": {
-                          "height": 610,
-                          "width": 390,
-                          "x": 1524,
-                          "y": 0
-                        },
-                        "maxSizeHint": {
-                          "height": 524317,
-                          "width": 524293
-                        },
-                        "minSize": {
-                          "height": 229,
-                          "width": 264
-                        },
-                        "percentageWithinParent": 0.20376175548589343
-                      }
-                    }
-                  ],
-                  "isContainer": true,
-                  "isVisible": false,
-                  "orientation": 1,
+                  "guestId": "13767",
+                  "isContainer": false,
+                  "isVisible": true,
                   "sizingInfo": {
                     "geometry": {
-                      "height": 610,
-                      "width": 1914,
+                      "height": 503,
+                      "width": 1494,
                       "x": 0,
-                      "y": 439
+                      "y": 546
                     },
                     "maxSizeHint": {
                       "height": 524287,
-                      "width": 1048580
+                      "width": 524287
                     },
                     "minSize": {
-                      "height": 229,
-                      "width": 344
+                      "height": 180,
+                      "width": 400
                     },
-                    "percentageWithinParent": 0.5815061963775023
+                    "percentageWithinParent": 0.47950428979980936
                   }
                 }
               ],
@@ -1004,19 +599,41 @@
               "sizingInfo": {
                 "geometry": {
                   "height": 1049,
-                  "width": 1914,
+                  "width": 1494,
                   "x": 0,
                   "y": 0
                 },
                 "maxSizeHint": {
-                  "height": 1048631,
-                  "width": 1048580
+                  "height": 16777215,
+                  "width": 16777215
                 },
                 "minSize": {
-                  "height": 524,
-                  "width": 861
+                  "height": 400,
+                  "width": 500
                 },
-                "percentageWithinParent": 1.0
+                "percentageWithinParent": 0.780564263322884
+              }
+            },
+            {
+              "guestId": "13862",
+              "isContainer": false,
+              "isVisible": true,
+              "sizingInfo": {
+                "geometry": {
+                  "height": 1049,
+                  "width": 420,
+                  "x": 1494,
+                  "y": 0
+                },
+                "maxSizeHint": {
+                  "height": 524287,
+                  "width": 524287
+                },
+                "minSize": {
+                  "height": 240,
+                  "width": 260
+                },
+                "percentageWithinParent": 0.219435736677116
               }
             }
           ],
@@ -1035,10 +652,10 @@
               "width": 16777215
             },
             "minSize": {
-              "height": 90,
-              "width": 80
+              "height": 400,
+              "width": 760
             },
-            "percentageWithinParent": 0.0
+            "percentageWithinParent": 1.0
           }
         }
       },

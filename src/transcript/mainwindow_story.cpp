@@ -17,8 +17,16 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "transcript/typingguard.hpp"
 
 #include <KActionCategory>
+#include <KColorScheme>
+#include <KColorSchemeManager>
 #include <KLocalizedString>
+#include <KSharedConfig>
+#include <KToolBar>
 #include <QAction>
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QStandardPaths>
 
 namespace {
 std::shared_ptr<TimelineItemModel> activeTimeline()
@@ -83,6 +91,13 @@ void MainWindow::setupStoryEditing()
     QAction *useStoryKeys = new QAction(i18n("Use story editing keys"), this);
     connect(useStoryKeys, &QAction::triggered, this, &MainWindow::slotApplyStoryShortcuts);
     story->addAction(QStringLiteral("story_keyboard_story"), useStoryKeys);
+    QAction *appearance = new QAction(i18n("Story appearance"), this);
+    appearance->setCheckable(true);
+    appearance->setChecked(KdenliveSettings::storyAppearance() == QLatin1String("story"));
+    appearance->setToolTip(i18n("Dark charcoal panels and a compact toolbar. Saved layouts and the theme menu stay available."));
+    connect(appearance, &QAction::toggled, this, &MainWindow::slotToggleStoryAppearance);
+    story->addAction(QStringLiteral("story_appearance"), appearance);
+
     QAction *useClassicKeys = new QAction(i18n("Use classic Kdenlive keys"), this);
     connect(useClassicKeys, &QAction::triggered, this, &MainWindow::slotApplyClassicShortcuts);
     story->addAction(QStringLiteral("story_keyboard_classic"), useClassicKeys);
@@ -106,6 +121,94 @@ void MainWindow::setupStoryEditing()
     // Ctrl+Space, Ctrl+I, and Ctrl+O already belong to Play Zone, Insert Zone, and Open.
 
     new StoryTypingGuard(actionCollection(), this);
+}
+
+QString MainWindow::storySchemePath() const
+{
+    const QString generic = QStandardPaths::locate(QStandardPaths::GenericDataLocation, QStringLiteral("color-schemes/StoryCharcoal.colors"));
+    if (!generic.isEmpty()) {
+        return generic;
+    }
+    const QString appData = QStandardPaths::locate(QStandardPaths::AppLocalDataLocation, QStringLiteral("color-schemes/StoryCharcoal.colors"));
+    if (!appData.isEmpty()) {
+        return appData;
+    }
+    return QCoreApplication::applicationDirPath() + QStringLiteral("/../share/kdenlive/color-schemes/StoryCharcoal.colors");
+}
+
+void MainWindow::applyStoryMetrics(bool compact)
+{
+    const QSize size = compact ? QSize(16, 16) : QSize(22, 22);
+    if (KToolBar *bar = toolBar()) {
+        bar->setIconSize(size);
+    }
+    if (m_timelineToolBar != nullptr) {
+        m_timelineToolBar->setIconSize(size);
+    }
+}
+
+void MainWindow::applyStoryAppearance(bool enabled)
+{
+    if (!enabled) {
+        KColorSchemeManager::instance()->activateSchemeId(QString());
+        applyStoryMetrics(false);
+        return;
+    }
+    const QString path = storySchemePath();
+    if (QFile::exists(path)) {
+        const QString genericDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/color-schemes");
+        QDir().mkpath(genericDir);
+        const QString published = genericDir + QStringLiteral("/StoryCharcoal.colors");
+        if (!QFile::exists(published)) {
+            QFile::copy(path, published);
+        }
+        auto *manager = KColorSchemeManager::instance();
+        if (manager->indexForSchemeId(QStringLiteral("StoryCharcoal")).isValid()) {
+            manager->activateSchemeId(QStringLiteral("StoryCharcoal"));
+        } else {
+            const KSharedConfigPtr config = KSharedConfig::openConfig(path, KConfig::SimpleConfig);
+            qApp->setPalette(KColorScheme::createApplicationPalette(config));
+        }
+    }
+    applyStoryMetrics(true);
+}
+
+void MainWindow::applyStartupStoryAppearance()
+{
+    QString choice = KdenliveSettings::storyAppearance();
+    const QString active = KColorSchemeManager::instance()->activeSchemeId();
+    if (choice.isEmpty()) {
+        const bool savedLayout = KdenliveSettings::kdockLayout().contains(QLatin1String("KdenliveKDDock"));
+        if (!active.isEmpty() || savedLayout) {
+            KdenliveSettings::setStoryAppearance(QStringLiteral("standard"));
+            if (QAction *action = actionCollection()->action(QStringLiteral("story_appearance"))) {
+                action->setChecked(false);
+            }
+            return;
+        }
+        choice = QStringLiteral("story");
+        KdenliveSettings::setStoryAppearance(choice);
+    }
+    if (choice == QLatin1String("story") && !active.isEmpty() && active != QLatin1String("StoryCharcoal")) {
+        KdenliveSettings::setStoryAppearance(QStringLiteral("standard"));
+        choice = QStringLiteral("standard");
+    }
+    const bool story = choice == QLatin1String("story");
+    if (QAction *action = actionCollection()->action(QStringLiteral("story_appearance"))) {
+        action->blockSignals(true);
+        action->setChecked(story);
+        action->blockSignals(false);
+    }
+    if (story) {
+        applyStoryAppearance(true);
+    }
+}
+
+void MainWindow::slotToggleStoryAppearance(bool enabled)
+{
+    KdenliveSettings::setStoryAppearance(enabled ? QStringLiteral("story") : QStringLiteral("standard"));
+    applyStoryAppearance(enabled);
+    pCore->displayMessage(enabled ? i18n("Story appearance is on.") : i18n("Standard appearance is on."), InformationMessage, 5000);
 }
 
 void MainWindow::applyStartupStoryPreset()

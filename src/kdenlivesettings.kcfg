@@ -1748,5 +1748,9 @@
       <label>Audio fade applied on each side of a transcript cut, in frames.</label>
       <default>2</default>
     </entry>
+    <entry name="storyAppearance" type="String">
+      <label>Visual appearance: empty until chosen, story, or standard.</label>
+      <default></default>
+    </entry>
     </group>
 </kcfg>

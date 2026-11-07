@@ -440,6 +440,7 @@ void Core::initGUI(const QString &MltPath, const QUrl &Url, const QStringList &c
     projectManager()->init(Url, clipsToLoad);
     m_mainWindow->init();
     m_mainWindow->applyStartupStoryPreset();
+    m_mainWindow->applyStartupStoryAppearance();
 
     m_guiConstructed = true;
     m_projectItemModel->buildPlaylist(QUuid());
