@@ -582,15 +582,23 @@ TEST_CASE("Rendered frames and audio stay aligned after transcript, pause, gap, 
     const int keptBeepC = outputFrameForSource(timeline, videoId, 110);
     REQUIRE(keptBeepA >= 0);
     REQUIRE(keptBeepC >= 0);
-    std::vector<int> subtitleSnaps;
-    for (const auto &entry : subtitles->getAllSubtitles()) {
-        subtitleSnaps.push_back(entry.first.second.frames(kFps));
-        subtitleSnaps.push_back(entry.second.endTime().frames(kFps));
-    }
-    const bool consistent = timeline->checkConsistency(subtitleSnaps);
-    if (!consistent) {
-        qWarning() << "Timeline snap model still has a point that is not a clip edge after the ripple. Rendered markers were still checked.";
-    }
+    auto snapModelMatchesClips = [&timeline]() {
+        std::vector<int> snaps;
+        if (auto model = timeline->getSubtitleModel()) {
+            for (const auto &entry : model->getAllSubtitles()) {
+                snaps.push_back(entry.first.second.frames(kFps));
+                snaps.push_back(entry.second.endTime().frames(kFps));
+            }
+        }
+        return timeline->checkConsistency(snaps);
+    };
+    REQUIRE(snapModelMatchesClips());
+    undoStack->undo();
+    REQUIRE(outputFrameForSource(timeline, videoId, 50) >= 0);
+    REQUIRE(snapModelMatchesClips());
+    undoStack->redo();
+    REQUIRE(outputFrameForSource(timeline, videoId, 50) < 0);
+    REQUIRE(snapModelMatchesClips());
     REQUIRE(pCore->projectManager()->testSaveFileAs(projectPath));
 
     const QString melt = programPath(QStringLiteral("melt"));

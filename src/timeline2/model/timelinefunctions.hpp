@@ -123,6 +123,8 @@ struct TimelineFunctions
     */
     static std::pair<int, int> requestSpacerStartOperation(const std::shared_ptr<TimelineItemModel> &timeline, int trackId, int position,
                                                            bool ignoreMultiTrackGroups = false, bool allowGroupBreaking = false);
+    /** Drop the temporary snap added by requestSpacerStartOperation when the move is not performed. */
+    static void abortSpacerOperation(const std::shared_ptr<TimelineItemModel> &timeline);
     /**
         @see requestSpacerStartOperation
         @param moveGuidesPosition if > -1, all guides after this position will be moved as well in the operation

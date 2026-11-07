@@ -502,6 +502,8 @@ bool StoryTimelineBridge::closeUnintendedGaps(const std::shared_ptr<TimelineItem
         }
         const int destination = spaceStart + keep;
         if (destination >= start) {
+            // The blank is an intentional gap. Drop the temporary spacer snap before leaving it.
+            TimelineFunctions::abortSpacerOperation(timeline);
             cursor = blankEnd + 1;
             continue;
         }

@@ -5,44 +5,52 @@ SPDX-License-Identifier: CC0-1.0
 
 # Story editing status
 
-Baseline commit: `4a4d449d97dae6dfdaa50e792e4c6b979d9fa2cf`, built at `/src-baseline`. This branch is built at `/workspace/build-story` inside the Ubuntu 27.04 chroot.
+Result: **incomplete**. The snap leak is fixed and the rendered marker check still passes. The speech-editor button, import, typing, cleanup dialog, save, and export were not clicked.
 
-## Commands that passed
+## Snap model
+
+Closing a blank that is kept as an intentional gap called `requestSpacerStartOperation`, which adds a temporary snap, then returned without `requestSpacerEndOperation`. That left a snap at frame 120, the old clip end. `TimelineFunctions::abortSpacerOperation` drops that snap. `SnapModel::removePoint` no longer inserts a point when the position is already gone.
 
 ```
 QT_QPA_PLATFORM=offscreen /workspace/build-story/bin/storyslicetest "[StorySync]"
-# 204 assertions, exit 0. Report: testingArea/sync-evidence/sync-report.txt
-# compared 68 rendered frames, 0 barcode mismatches, 2 beep peaks
-
-QT_QPA_PLATFORM=offscreen /workspace/build-story/bin/storyedittest "*preset*"
-# 73 assertions, exit 0
-
-python3 /workspace/data/scripts/whisper/whispertotext.py \
-  -S /workspace/testingArea/sync-evidence/marked.wav \
-  -M tiny -D cpu -L en --words_json /tmp/whisper-words.json
-# exit 0. Words: Um 0.00–0.64, hello 0.74–0.96, Like 2.44–2.96
 ```
 
-`storyslicetest "[StorySync]"` builds 1280×720 video at 30000/1001 with a per-frame barcode, and 48 kHz audio with 2 kHz beeps plus espeak-ng “um”, “hello”, and “like”. It loads both into a real timeline, connects a B-roll clip, keeps a 15-frame intentional gap while closing the blank in front of it, approves the “um” filler and not “like”, ripple-cuts those source ranges, undoes and redoes, saves, and renders with melt (H.264, PCM). Decoded barcodes matched the timeline’s source frame within 1 frame on 68 frames. Beep peaks were 5 and 106 samples from the timeline times (one frame is about 1602 samples). Source file size and mtime were unchanged. A stale snap remains at the original clip end (frame 120); it did not move the rendered markers.
+209 assertions, exit 0. The snap model matches clip edges and subtitle times after the cut, after undo, and after redo. Log: `testingArea/sync-evidence/storysync.log`. Summary: `testingArea/sync-evidence/sync-report.txt`.
 
-`*preset*` applies the story keys on a real action collection (R range, W insert, E append, Q connect, A select) and checks copy, paste, undo, arrows, and Backspace are not taken. It then calls `selectClipRangeAtPlayhead`, `connectSelection`, and `TimelineFunctions::insertZone` (the append path) on a timeline.
+## Why the window was not driven
 
-## GUI
+Three launches only mapped the window and took screenshots. They did not send widget events.
+
+- CMake reports `SeleniumWebDriverATSPI` was not found. The log says it is needed for GUI tests. No AT-SPI driver is installed, so buttons cannot be addressed by name.
+- A Qt harness, `tests/storyguiharness`, called `Core::build` and `initGUI` on the real window path. It segfaulted before any widget existed:
 
 ```
-HOME=/workspace/testingArea/gui-home \
-XDG_CONFIG_HOME=$HOME/.config \
-DISPLAY=:1 QT_QPA_PLATFORM=xcb \
-QSG_RHI_BACKEND=software QT_QUICK_BACKEND=software LIBGL_ALWAYS_SOFTWARE=1 \
-/workspace/build-story/bin/kdenlive --no-welcome
+QQmlApplicationEngine failed to load component
+module "org.kde.kdenlive" plugin "kdenliveLibplugin" not found
 ```
 
-The config skips the welcome wizard. The window “Untitled / HD 1080p 25 fps — Kdenlive” opened with the project bin, timeline (V2, V1, A1, A2), and a Speech Editor tab. Startup logged `Assigned 29 shortcuts` and no missing actions.
+The QML plugin is registered with the `kdenlive` executable, not with a second binary. The harness was removed so it is not left as a broken target. Log: `testingArea/sync-evidence/gui-harness.log`.
 
-An earlier build blocked on KXmlGui “Ambiguous Shortcuts” because the typing alternates used Ctrl+O (Open), Ctrl+I (Insert Zone), and Ctrl+Space (Play Zone), and Shift+Delete was on both Cut and Extract. Those story alternates were removed and the extra Cut shortcut is cleared before `setupGUI`. Pause-while-typing is Ctrl+Shift+K.
+Catch tests call `Core::build(..., testMode=true)`, which never constructs `MainWindow` or `Bin`, so `pCore->bin()` is null. There is no test setter for the window.
 
-Not done in the window: import, typing a correction, clicking delete, the in-app Whisper venv, the cleanup dialog, save, or export. The Speech Editor tab was visible and not operated. Kdenlive’s Whisper job uses its own Python venv; that venv was not created. The script above is the one the speech editor launches.
+## Whisper venv
 
-`duplicateSequenceByBinId` needs a Bin widget. Headless tests have `pCore->bin() == nullptr`, so the clone was not executed. `StoryCleanup::duplicateSequenceByDefault()` is true and the checkbox uses it.
+The app looks for `~/.local/share/kdenlive/venv/bin/python3`. Creating it failed until `python3.14-venv` was installed (`ensurepip is not available`). After that package:
+
+```
+/workspace/testingArea/gui-home/.local/share/kdenlive/venv/bin/python3 -c "import whisper"
+```
+
+prints `WHISPER_OK` inside the chroot. Log: `testingArea/sync-evidence/venv-whisper.log`. The model file is `testingArea/gui-home/.cache/whisper/tiny.pt`. The Speech Editor start button was not clicked, so this is not the in-app job.
+
+## Manual steps still required
+
+1. `HOME=/workspace/testingArea/gui-home XDG_CONFIG_HOME=$HOME/.config XDG_DATA_HOME=$HOME/.local/share DISPLAY=:1 /workspace/build-story/bin/kdenlive --no-welcome`
+2. Import `testingArea/sync-evidence/marked.wav` into the bin and select it.
+3. Open the Speech Editor tab and press the start button. The venv python and tiny model are already on disk.
+4. Type a correction and confirm the timeline does not move. Delete a spoken word and confirm a ripple.
+5. Run pause review and filler review. Leave “like” unchecked. Confirm “Duplicate the sequence before applying” is checked, apply, and confirm the original sequence is unchanged.
+6. Create a sequence from a selection. Undo, redo, save, reopen.
+7. Use File → Render (or `kdenlive --render project.kdenlive output.mkv`) and repeat the barcode and beep check.
 
 No package was built.

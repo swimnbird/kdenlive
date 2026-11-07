@@ -671,6 +671,15 @@ std::pair<int, int> TimelineFunctions::requestSpacerStartOperation(const std::sh
     return {-1, -1};
 }
 
+void TimelineFunctions::abortSpacerOperation(const std::shared_ptr<TimelineItemModel> &timeline)
+{
+    if (timeline && spacerMinPosition >= 0) {
+        timeline->m_snaps->removePoint(spacerMinPosition);
+    }
+    spacerMinPosition = -1;
+    spacerMaxPosition = -1;
+}
+
 bool TimelineFunctions::requestSpacerEndOperation(const std::shared_ptr<TimelineItemModel> &timeline, int itemId, int startPosition, int endPosition,
                                                   int affectedTrack, int moveGuidesPosition, Fun &undo, Fun &redo, bool pushUndo)
 {

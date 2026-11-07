@@ -23,11 +23,14 @@ void SnapModel::addPoint(int position)
 
 void SnapModel::removePoint(int position)
 {
-    Q_ASSERT(m_snaps.count(position) > 0);
-    if (m_snaps[position] == 1) {
-        m_snaps.erase(position);
+    auto it = m_snaps.find(position);
+    if (it == m_snaps.end()) {
+        return;
+    }
+    if (it->second <= 1) {
+        m_snaps.erase(it);
     } else {
-        m_snaps[position]--;
+        --(it->second);
     }
 }
 
