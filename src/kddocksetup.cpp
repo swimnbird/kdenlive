@@ -15,8 +15,11 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QTabBar>
 
 #include <QPainter>
+#include <QPainterPath>
 #include <QProxyStyle>
+#include <QRegion>
 #include <QStyleFactory>
+#include <QWindow>
 
 #include <functional>
 
@@ -124,9 +127,143 @@ public:
     explicit KdenliveDockGroup(KDDockWidgets::Core::Group *controller, KDDockWidgets::Core::View *parent = nullptr)
         : KDDockWidgets::QtWidgets::Group(controller, KDDockWidgets::QtCommon::View_qt::asQWidget(parent))
     {
+        // The group itself paints the gutter and the rounded fill. Children must not fill square corners over it.
+        setAttribute(Qt::WA_StyledBackground, false);
     }
-    void paintEvent(QPaintEvent *) override {}
+
+    static constexpr int kRadius = 8;
+    static constexpr int kGutter = 4;
+
+    void syncStoryClip()
+    {
+        if (m_syncing) {
+            return;
+        }
+        m_syncing = true;
+        const bool story = KdenliveSettings::storyAppearance() == QLatin1String("story");
+        const auto descendants = findChildren<QWidget *>();
+        if (!story || width() < 32 || height() < 32) {
+            clearStoryMasks(descendants);
+            m_syncing = false;
+            update();
+            return;
+        }
+        const QRect panelRect = rect().adjusted(kGutter, kGutter, -kGutter, -kGutter);
+        QPainterPath path;
+        path.addRoundedRect(QRectF(panelRect), kRadius, kRadius);
+        const QRegion panelRegion(path.toFillPolygon().toPolygon());
+        for (QWidget *child : descendants) {
+            const bool frame = child->parentWidget() == this;
+            const bool native = child->testAttribute(Qt::WA_NativeWindow) || child->inherits("QQuickWidget");
+            if (!frame && !native) {
+                continue;
+            }
+            if (!child->isVisible() || child->size().isEmpty()) {
+                continue;
+            }
+            const QPoint origin = child->mapTo(this, QPoint(0, 0));
+            const QRect childRect(origin, child->size());
+            if (!childRect.intersects(rect())) {
+                continue;
+            }
+            const QRegion local = panelRegion.translated(-origin);
+            const QRect bounds = child->rect();
+            const QPoint corners[] = {bounds.topLeft(), bounds.topRight(), bounds.bottomLeft(), bounds.bottomRight()};
+            bool cutsCorner = false;
+            for (const QPoint &corner : corners) {
+                // QRegion::contains(QRect) is overlap, not containment. Test the corner pixels themselves.
+                if (!local.contains(corner)) {
+                    cutsCorner = true;
+                    break;
+                }
+            }
+            if (!cutsCorner) {
+                clearOneMask(child);
+                continue;
+            }
+            const QRegion mask = local.intersected(QRegion(child->rect()));
+            if (mask.isEmpty() || child->mask() == mask) {
+                child->setProperty("storyClip", true);
+                continue;
+            }
+            child->setMask(mask);
+            if (QWindow *window = child->windowHandle()) {
+                window->setMask(mask);
+            }
+            child->setProperty("storyClip", true);
+        }
+        m_syncing = false;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        if (KdenliveSettings::storyAppearance() != QLatin1String("story") || width() < 32 || height() < 32) {
+            return;
+        }
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.fillRect(rect(), QColor(12, 12, 14));
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(38, 38, 42));
+        painter.drawRoundedRect(QRectF(rect()).adjusted(kGutter, kGutter, -kGutter, -kGutter), kRadius, kRadius);
+    }
+
+    void resizeEvent(QResizeEvent *event) override
+    {
+        KDDockWidgets::QtWidgets::Group::resizeEvent(event);
+        syncStoryClip();
+    }
+
+    void showEvent(QShowEvent *event) override
+    {
+        KDDockWidgets::QtWidgets::Group::showEvent(event);
+        syncStoryClip();
+    }
+
+    bool event(QEvent *event) override
+    {
+        const bool handled = KDDockWidgets::QtWidgets::Group::event(event);
+        if (event->type() == QEvent::ChildAdded || event->type() == QEvent::LayoutRequest) {
+            syncStoryClip();
+        }
+        return handled;
+    }
+
+private:
+    void clearOneMask(QWidget *child)
+    {
+        if (!child->property("storyClip").toBool()) {
+            return;
+        }
+        child->clearMask();
+        if (QWindow *window = child->windowHandle()) {
+            window->setMask(QRegion());
+        }
+        child->setProperty("storyClip", false);
+    }
+
+    void clearStoryMasks(const QList<QWidget *> &descendants)
+    {
+        for (QWidget *child : descendants) {
+            clearOneMask(child);
+        }
+    }
+
+    bool m_syncing{false};
 };
+
+void refreshStoryDockFrames(QWidget *root)
+{
+    if (root == nullptr) {
+        return;
+    }
+    const auto groups = root->findChildren<KDDockWidgets::QtWidgets::Group *>();
+    for (KDDockWidgets::QtWidgets::Group *group : groups) {
+        static_cast<KdenliveDockGroup *>(group)->syncStoryClip();
+    }
+}
 
 class KdenliveDockStack : public KDDockWidgets::QtWidgets::Stack
 {
@@ -201,6 +338,11 @@ public:
     void paintEvent(QPaintEvent *) override
     {
         QPainter p(this);
+        if (KdenliveSettings::storyAppearance() == QLatin1String("story")) {
+            // The groups paint their own gutter. A center hairline would read as a second seam.
+            p.fillRect(QWidget::rect(), QColor(12, 12, 14));
+            return;
+        }
         QColor separatorColor = hovered ? palette().highlight().color() : palette().midlight().color();
         if (hovered) {
             separatorColor.setAlpha(128);

@@ -30,3 +30,8 @@ public:
     KDDockWidgets::Core::View *createTabBar(KDDockWidgets::Core::TabBar *, KDDockWidgets::Core::View *parent) const override;
     KDDockWidgets::Core::View *createSeparator(KDDockWidgets::Core::Separator *, KDDockWidgets::Core::View *parent) const override;
 };
+
+class QWidget;
+
+// Clips Story dock groups to a real rounded surface. Safe to call again after resize or a theme toggle.
+void refreshStoryDockFrames(QWidget *root);

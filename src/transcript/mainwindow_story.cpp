@@ -18,7 +18,9 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 
 #include <kddockwidgets/Config.h>
 #include <kddockwidgets/core/TitleBar.h>
+#include <kddockwidgets/qtwidgets/views/DropArea.h>
 #include <kddockwidgets/qtwidgets/views/Group.h>
+#include <kddockwidgets/qtwidgets/views/Separator.h>
 #include <kddockwidgets/qtwidgets/views/TitleBar.h>
 #include <KActionCategory>
 #include <KColorScheme>
@@ -26,121 +28,18 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <KLocalizedString>
 #include <KSharedConfig>
 #include <KToolBar>
+#include "kddocksetup.h"
+
 #include <QAction>
 #include <QApplication>
 #include <QIcon>
-#include <QImage>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
-#include <QPainter>
-#include <QPainterPath>
 #include <QStandardPaths>
 #include <QTimer>
 
 namespace {
-class StoryCornerCap : public QWidget
-{
-public:
-    enum Place { TopLeft, TopRight, BottomLeft, BottomRight };
-
-    StoryCornerCap(QWidget *panel, Place place)
-        : QWidget(panel)
-        , m_place(place)
-    {
-        setAttribute(Qt::WA_TransparentForMouseEvents, true);
-        setFixedSize(16, 16);
-        panel->installEventFilter(this);
-        placeSelf();
-        raise();
-    }
-
-    void placeSelf()
-    {
-        QWidget *panel = parentWidget();
-        if (panel == nullptr) {
-            return;
-        }
-        const int s = width();
-        int x = 0;
-        int y = 0;
-        if (m_place == TopRight || m_place == BottomRight) {
-            x = qMax(0, panel->width() - s);
-        }
-        if (m_place == BottomLeft || m_place == BottomRight) {
-            y = qMax(0, panel->height() - s);
-        }
-        move(x, y);
-        raise();
-    }
-
-protected:
-    bool eventFilter(QObject *watched, QEvent *event) override
-    {
-        if (watched == parentWidget() && event->type() == QEvent::Resize) {
-            placeSelf();
-        }
-        return QWidget::eventFilter(watched, event);
-    }
-
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter painter(this);
-        constexpr int radius = 10;
-        QImage wedge(size(), QImage::Format_ARGB32_Premultiplied);
-        wedge.fill(QColor(42, 42, 46));
-        for (int y = 0; y < wedge.height(); ++y) {
-            for (int x = 0; x < wedge.width(); ++x) {
-                int lx = x;
-                int ly = y;
-                if (m_place == TopRight || m_place == BottomRight) {
-                    lx = wedge.width() - 1 - x;
-                }
-                if (m_place == BottomLeft || m_place == BottomRight) {
-                    ly = wedge.height() - 1 - y;
-                }
-                if (lx < radius && ly < radius) {
-                    const int dx = radius - lx;
-                    const int dy = radius - ly;
-                    if (dx * dx + dy * dy > radius * radius) {
-                        wedge.setPixelColor(x, y, QColor(16, 16, 18));
-                    }
-                }
-            }
-        }
-        painter.drawImage(0, 0, wedge);
-    }
-
-private:
-    Place m_place;
-};
-
-QList<QWidget *> storyOverlays;
-
-void clearStoryOverlays()
-{
-    for (QWidget *overlay : std::as_const(storyOverlays)) {
-        if (overlay != nullptr) {
-            overlay->deleteLater();
-        }
-    }
-    storyOverlays.clear();
-}
-
-void addStoryCorners(QWidget *panel)
-{
-    if (panel == nullptr || panel->width() < 20 || panel->height() < 20) {
-        return;
-    }
-    const StoryCornerCap::Place places[] = {StoryCornerCap::TopLeft, StoryCornerCap::TopRight, StoryCornerCap::BottomLeft,
-                                            StoryCornerCap::BottomRight};
-    for (StoryCornerCap::Place place : places) {
-        auto *cap = new StoryCornerCap(panel, place);
-        cap->placeSelf();
-        storyOverlays.append(cap);
-    }
-}
-
 QString storyControlStyle()
 {
     return QStringLiteral(
@@ -470,27 +369,60 @@ void MainWindow::applyStoryDockChrome(bool story)
         pCore->bin()->applyStoryBrowser(true);
     }
     applyStorySurfaces(story);
-    QTimer::singleShot(800, this, [this, story]() {
-        if (KdenliveSettings::storyAppearance() == QLatin1String("story") && story) {
-            clearStoryOverlays();
-            const auto groups = findChildren<KDDockWidgets::QtWidgets::Group *>();
-            qInfo().noquote() << "story rounded groups" << groups.size();
-            for (KDDockWidgets::QtWidgets::Group *group : groups) {
-                addStoryCorners(group);
-            }
-            const auto titles = findChildren<KDDockWidgets::QtWidgets::TitleBar *>();
-            for (KDDockWidgets::QtWidgets::TitleBar *title : titles) {
-                addStoryCorners(title);
-            }
-        }
-    });
+    const auto refresh = [this]() { applyStorySurfaces(KdenliveSettings::storyAppearance() == QLatin1String("story")); };
+    QTimer::singleShot(0, this, refresh);
+    QTimer::singleShot(400, this, refresh);
 }
 
 void MainWindow::applyStorySurfaces(bool story)
 {
-    if (!story) {
-        clearStoryOverlays();
+    const QColor backdrop(12, 12, 14);
+    if (mainDockWindow != nullptr) {
+        QPalette palette = mainDockWindow->palette();
+        if (story) {
+            palette.setColor(QPalette::Window, backdrop);
+            mainDockWindow->setAutoFillBackground(true);
+            mainDockWindow->setPalette(palette);
+            // Fixed outer inset. This is not a saved layout and is restored with Standard appearance.
+            mainDockWindow->setCenterWidgetMargins(QMargins(6, 6, 6, 6));
+        } else {
+            mainDockWindow->setAutoFillBackground(false);
+            mainDockWindow->setPalette(QApplication::palette());
+            mainDockWindow->setCenterWidgetMargins(QMargins(1, 1, 1, 1));
+        }
+        mainDockWindow->setContentsMargins(0, 0, 0, 0);
     }
+    const auto areas = findChildren<KDDockWidgets::QtWidgets::DropArea *>();
+    for (KDDockWidgets::QtWidgets::DropArea *area : areas) {
+        if (story) {
+            QPalette palette = area->palette();
+            palette.setColor(QPalette::Window, backdrop);
+            area->setAutoFillBackground(true);
+            area->setPalette(palette);
+        } else {
+            area->setAutoFillBackground(false);
+            area->setPalette(QApplication::palette());
+        }
+    }
+    const auto groups = findChildren<KDDockWidgets::QtWidgets::Group *>();
+    qInfo().noquote() << "story panel groups" << groups.size() << (story ? "rounded" : "restored");
+    const auto seams = findChildren<KDDockWidgets::QtWidgets::Separator *>();
+    for (KDDockWidgets::QtWidgets::Separator *seam : seams) {
+        if (story) {
+            seam->setAutoFillBackground(true);
+            QPalette palette = seam->palette();
+            palette.setColor(QPalette::Window, backdrop);
+            seam->setPalette(palette);
+            seam->setStyleSheet(QStringLiteral("background: #0c0c0e; border: none;"));
+            seam->update();
+        } else if (!seam->styleSheet().isEmpty()) {
+            seam->setAutoFillBackground(false);
+            seam->setPalette(QApplication::palette());
+            seam->setStyleSheet(QString());
+            seam->update();
+        }
+    }
+    refreshStoryDockFrames(this);
     const auto bars = findChildren<KDDockWidgets::QtWidgets::TitleBar *>();
     const auto hidden = KDDockWidgets::TitleBarButtonType::AllTitleBarButtonTypes;
     for (KDDockWidgets::QtWidgets::TitleBar *bar : bars) {
