@@ -107,6 +107,18 @@ Screenshots of `/workspace/build-story/bin/kdenlive --no-welcome` on display `:1
 - 1680×1000: `/opt/cursor/artifacts/story-appearance-1680.png`
 - 1920×1040: `/opt/cursor/artifacts/story-appearance-1920.png`
 
+The Story workspace was refined after the empty-window screenshot was rejected. The main toolbar no longer repeats New, Open, Save, Cut, Copy, and Paste; those stay in the File and Edit menus. It now has Undo, Redo, and real toggles named Browser, Viewer, Clip, Inspector, and Transcript, plus Switch Monitor and the existing bin Tree View and Icon View actions. Panel names sit in the dock headers. The timeline spans the full width under the browser, viewer, and inspector. Utility docks such as the speech editor, media browser, mixer, and clip monitor start closed and open from those toggles. This is a Linux X11 session, not a Mac screenshot. The system font is Noto Sans, DejaVu Sans, or Liberation Sans. On macOS the same code asks for the system UI font.
+
+A generated project, `testingArea/story-workspace.kdenlive`, places the color clips from `tests/dataset/test-mix.kdenlive` on the timeline and the local speech wav on an audio track. The project monitor stayed grey and did not draw a clip frame. No preview-error dialog appeared in that run, and playback is not accepted. The timeline did show the green and red clips and the speech clip.
+
+- Rejected empty layout: `/opt/cursor/artifacts/story-tabs-1280.png`
+- Populated, 1280×800: `/opt/cursor/artifacts/story-refine-1280.png`
+- Populated, 1680×1050: `/opt/cursor/artifacts/story-refine-1680.png`
+- Bin clip selected, inspector reads “Bin Color Clip effects”: `/opt/cursor/artifacts/story-refine-selected.png`
+- Browser hidden, viewer widened, transcript tooltip “Show or hide the speech editor.”: `/opt/cursor/artifacts/story-refine-browser-off.png`
+
+`storyedittest "[StoryLayout]"` plus the preset case: 85 assertions, exit 0. `storyslicetest "[StorySync]"`: 209 assertions, exit 0.
+
 At 1280 the long inspector titles were clipped. With Story appearance on, those docks use the shorter titles Effects, Clip, and Mixer. The full names stay on the tooltips, and the dock object names are unchanged. Turning the appearance off restores Effect/Composition Stack, Clip Properties, and Audio Mixer. Screenshots of that toggle, still with an empty project and no clip playing:
 
 - Story appearance, 1280×800: `/opt/cursor/artifacts/story-tabs-1280.png`

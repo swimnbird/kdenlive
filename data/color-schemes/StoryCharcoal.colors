@@ -134,7 +134,7 @@ Name=Story Charcoal
 shadeSortColumn=true
 
 [KDE]
-contrast=3
+contrast=2
 
 [WM]
 activeBackground=32,32,34

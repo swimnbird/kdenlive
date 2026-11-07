@@ -20,6 +20,10 @@
 
 #include <KActionCollection>
 #include <QAction>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include <cmath>
 #include <unordered_set>
@@ -313,4 +317,41 @@ TEST_CASE("Story preset commands select, connect, and append on the timeline", "
     CHECK(timeline->checkConsistency());
     pCore->projectManager()->testSetActiveTimeline(nullptr);
     pCore->projectManager()->testSetDocument(nullptr);
+}
+
+TEST_CASE("Story layout keeps a full-width timeline under the viewer", "[StoryLayout]")
+{
+    const QStringList candidates = {QStringLiteral("/workspace/data/layouts/story.json"),
+                                    QStringLiteral("/usr/share/kdenlive/layouts/story.json")};
+    QString path;
+    for (const QString &candidate : candidates) {
+        if (QFile::exists(candidate)) {
+            path = candidate;
+            break;
+        }
+    }
+    REQUIRE_FALSE(path.isEmpty());
+    QFile file(path);
+    REQUIRE(file.open(QIODevice::ReadOnly));
+    const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
+    const QJsonObject layout = root.value(QStringLiteral("mainWindows")).toArray().at(0).toObject().value(QStringLiteral("multiSplitterLayout")).toObject();
+    const QJsonObject frames = layout.value(QStringLiteral("frames")).toObject();
+    const QJsonObject tree = layout.value(QStringLiteral("layout")).toObject();
+    REQUIRE(tree.value(QStringLiteral("orientation")).toInt() == 2);
+    const QJsonArray rows = tree.value(QStringLiteral("children")).toArray();
+    REQUIRE(rows.size() == 2);
+    const QJsonObject top = rows.at(0).toObject();
+    const QJsonObject timeline = rows.at(1).toObject();
+    CHECK(top.value(QStringLiteral("orientation")).toInt() == 1);
+    CHECK(timeline.value(QStringLiteral("guestId")).toString() == QStringLiteral("13767"));
+    const QJsonArray topChildren = top.value(QStringLiteral("children")).toArray();
+    REQUIRE(topChildren.size() == 3);
+    const QString viewerId = topChildren.at(1).toObject().value(QStringLiteral("guestId")).toString();
+    const QString inspectorId = topChildren.at(2).toObject().value(QStringLiteral("guestId")).toString();
+    CHECK(frames.value(viewerId).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("projectmonitor")));
+    CHECK(frames.value(inspectorId).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("effect_stack")));
+    CHECK(frames.value(QStringLiteral("13767")).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("timeline")));
+    const double timelineShare = timeline.value(QStringLiteral("sizingInfo")).toObject().value(QStringLiteral("percentageWithinParent")).toDouble();
+    CHECK(timelineShare > 0.35);
+    CHECK(timelineShare < 0.55);
 }

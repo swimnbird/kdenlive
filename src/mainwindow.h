@@ -529,6 +529,7 @@ private Q_SLOTS:
     void slotToggleStoryRange();
     void slotToggleStoryMagnetic();
     void slotToggleStoryAppearance(bool enabled);
+    void slotStoryToggleDock(const QString &dockId, bool visible);
     void slotStoryCloseGaps();
     void slotCreateRangeMarkerFromZone();
     void slotCreateRangeMarkerFromZoneQuick();

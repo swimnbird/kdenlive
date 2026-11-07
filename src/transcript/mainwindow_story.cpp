@@ -16,6 +16,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "transcript/storytimelinebridge.hpp"
 #include "transcript/typingguard.hpp"
 
+#include <kddockwidgets/Config.h>
 #include <KActionCategory>
 #include <KColorScheme>
 #include <KColorSchemeManager>
@@ -23,6 +24,8 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <KSharedConfig>
 #include <KToolBar>
 #include <QAction>
+#include <QApplication>
+#include <QIcon>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -120,7 +123,44 @@ void MainWindow::setupStoryEditing()
               actionCollection()->action(QStringLiteral("monitor_seek_forward")));
     // Ctrl+Space, Ctrl+I, and Ctrl+O already belong to Play Zone, Insert Zone, and Open.
 
+    auto panel = [this, story](const QString &id, const QString &label, const QString &tip, const QString &iconName, const QString &dockId) {
+        QAction *action = new QAction(QIcon::fromTheme(iconName), label, this);
+        action->setToolTip(tip);
+        action->setStatusTip(tip);
+        action->setCheckable(true);
+        action->setChecked(true);
+        connect(action, &QAction::triggered, this, [this, dockId](bool visible) { slotStoryToggleDock(dockId, visible); });
+        story->addAction(id, action);
+    };
+    // These control Kdenlive docks. The labels follow the browser / viewer / inspector / transcript
+    // arrangement described in Apple's Final Cut Pro interface guide. They are not Final Cut commands.
+    panel(QStringLiteral("story_show_browser"), i18n("Browser"), i18n("Show or hide the project bin."), QStringLiteral("folder-videos"),
+          QStringLiteral("project_bin"));
+    panel(QStringLiteral("story_show_viewer"), i18n("Viewer"), i18n("Show or hide the project monitor."), QStringLiteral("video-television"),
+          QStringLiteral("projectmonitor"));
+    panel(QStringLiteral("story_show_clip"), i18n("Clip"), i18n("Show or hide the clip monitor."), QStringLiteral("kdenlive-show-video"),
+          QStringLiteral("clipmonitor"));
+    panel(QStringLiteral("story_show_inspector"), i18n("Inspector"), i18n("Show or hide the effect stack for the current selection."),
+          QStringLiteral("document-properties"), QStringLiteral("effect_stack"));
+    panel(QStringLiteral("story_show_transcript"), i18n("Transcript"), i18n("Show or hide the speech editor."), QStringLiteral("edit-rename"),
+          QStringLiteral("textedit"));
+
     new StoryTypingGuard(actionCollection(), this);
+}
+
+void MainWindow::slotStoryToggleDock(const QString &dockId, bool visible)
+{
+    auto *dock = findChild<KDDockWidgets::QtWidgets::DockWidget *>(dockId);
+    if (dock == nullptr) {
+        return;
+    }
+    if (visible) {
+        dock->open();
+        dock->setAsCurrentTab();
+        dock->raise();
+    } else if (dock->isOpen()) {
+        dock->forceClose();
+    }
 }
 
 QString MainWindow::storySchemePath() const
@@ -136,14 +176,42 @@ QString MainWindow::storySchemePath() const
     return QCoreApplication::applicationDirPath() + QStringLiteral("/../share/kdenlive/color-schemes/StoryCharcoal.colors");
 }
 
-void MainWindow::applyStoryMetrics(bool compact)
+void MainWindow::applyStoryMetrics(bool story)
 {
-    const QSize size = compact ? QSize(16, 16) : QSize(22, 22);
+    const QSize size(22, 22);
     if (KToolBar *bar = toolBar()) {
         bar->setIconSize(size);
+        bar->setToolButtonStyle(story ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
+        bar->setStyleSheet(story ? QStringLiteral("QToolBar { spacing: 6px; padding: 2px 4px; }") : QString());
     }
     if (m_timelineToolBar != nullptr) {
         m_timelineToolBar->setIconSize(size);
+        const QStringList utilityTools = {QStringLiteral("favorite_effects"), QStringLiteral("timeline_preview_button"),
+                                          QStringLiteral("audiomixer_button"), QStringLiteral("subtitle_tool"), QStringLiteral("mix_clip")};
+        const auto actions = m_timelineToolBar->actions();
+        for (QAction *action : actions) {
+            if (utilityTools.contains(action->objectName())) {
+                action->setVisible(!story);
+            }
+        }
+    }
+    if (story) {
+        QFont font = this->font();
+#ifdef Q_OS_MACOS
+        font.setFamilies({QStringLiteral(".AppleSystemUIFont"), QStringLiteral("Helvetica Neue"), font.family()});
+#else
+        font.setFamilies({QStringLiteral("Noto Sans"), QStringLiteral("DejaVu Sans"), QStringLiteral("Liberation Sans"), font.family()});
+#endif
+        if (font.pointSizeF() > 0 && font.pointSizeF() < 11.5) {
+            font.setPointSizeF(11.5);
+        }
+        setFont(font);
+        KDDockWidgets::Config::self().setTabsAtBottom(false);
+        Q_EMIT pCore->hideBars(false);
+    } else {
+        setFont(QApplication::font());
+        KDDockWidgets::Config::self().setTabsAtBottom(KdenliveSettings::tabposition() == 1);
+        Q_EMIT pCore->hideBars(!KdenliveSettings::showtitlebars());
     }
 }
 
@@ -199,6 +267,26 @@ void MainWindow::applyStoryDockChrome(bool story)
             toggle->setText(title);
             toggle->setToolTip(full);
         }
+    }
+    const struct {
+        const char *actionId;
+        const char *dockId;
+    } panels[] = {
+        {"story_show_browser", "project_bin"},
+        {"story_show_viewer", "projectmonitor"},
+        {"story_show_clip", "clipmonitor"},
+        {"story_show_inspector", "effect_stack"},
+        {"story_show_transcript", "textedit"},
+    };
+    for (const auto &panel : panels) {
+        QAction *action = actionCollection()->action(QLatin1String(panel.actionId));
+        auto *dock = findChild<KDDockWidgets::QtWidgets::DockWidget *>(QLatin1String(panel.dockId));
+        if (action == nullptr || dock == nullptr) {
+            continue;
+        }
+        action->blockSignals(true);
+        action->setChecked(dock->isOpen());
+        action->blockSignals(false);
     }
 }
 

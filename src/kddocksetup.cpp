@@ -206,7 +206,7 @@ public:
             separatorColor.setAlpha(128);
         }
         QPen pen(separatorColor);
-        pen.setWidth(2);
+        pen.setWidth(1);
         if (m_controller->isVertical()) {
             // Vertical rect
             p.fillRect(QWidget::rect(), palette().window());

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!DOCTYPE kpartgui SYSTEM "kpartgui.dtd">
-<kpartgui name="kdenlive" version="253" translationDomain="kdenlive">
+<kpartgui name="kdenlive" version="254" translationDomain="kdenlive">
   <MenuBar>
     <Menu name="file">
       <Action name="file_new"/>
@@ -386,6 +386,21 @@
     <Separator/>
     <Action name="audiomixer_button"/>
     <Action name="subtitle_tool"/>
+  </ToolBar>
+  <ToolBar name="mainToolBar" noMerge="1">
+    <text>Main Toolbar</text>
+    <Action name="edit_undo"/>
+    <Action name="edit_redo"/>
+    <Separator/>
+    <Action name="story_show_browser"/>
+    <Action name="story_show_viewer"/>
+    <Action name="story_show_clip"/>
+    <Action name="story_show_inspector"/>
+    <Action name="story_show_transcript"/>
+    <Separator/>
+    <Action name="switch_monitor"/>
+    <Action name="bin_view_mode_tree"/>
+    <Action name="bin_view_mode_icon"/>
   </ToolBar>
   <ToolBar name="extraToolBar">
     <text>Extra Toolbar</text>
