@@ -46,6 +46,7 @@ void MainWindow::setupStoryEditing()
     story->addAction(QStringLiteral("story_skim"), skim);
 
     QAction *magnetic = new QAction(i18n("Magnetic storyline"), this);
+    magnetic->setToolTip(i18n("Optional. Transcript and story deletes ripple unlocked tracks. Trim, slip, and spacer tools are unchanged. Intentional gaps are kept."));
     magnetic->setCheckable(true);
     magnetic->setChecked(KdenliveSettings::storyMagnetic());
     connect(magnetic, &QAction::triggered, this, &MainWindow::slotToggleStoryMagnetic);
@@ -74,7 +75,8 @@ void MainWindow::setupStoryEditing()
     connect(clipRange, &QAction::triggered, this, &MainWindow::slotStorySelectClipRange);
     story->addAction(QStringLiteral("story_select_clip_range"), clipRange);
 
-    QAction *closeGaps = new QAction(i18n("Close unintended gaps"), this);
+    QAction *closeGaps = new QAction(i18n("Close unintended gaps on the primary video track"), this);
+    closeGaps->setToolTip(i18n("Closes blanks on the primary video track except ranges marked as intentional gaps. Other trim tools are not magnetic."));
     connect(closeGaps, &QAction::triggered, this, &MainWindow::slotStoryCloseGaps);
     story->addAction(QStringLiteral("story_close_gaps"), closeGaps);
 

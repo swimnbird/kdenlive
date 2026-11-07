@@ -112,3 +112,44 @@ QVector<PauseEdit> SilenceAnalyzer::planPauseEdits(const QVector<SilenceRegion> 
     }
     return edits;
 }
+
+SilenceAnalysisJob::SilenceAnalysisJob(QObject *parent)
+    : QObject(parent)
+{
+    connect(&m_process, &QProcess::finished, this, [this](int exitCode, QProcess::ExitStatus status) {
+        const QString log = QString::fromUtf8(m_process.readAllStandardError());
+        if (m_cancelled) {
+            Q_EMIT finished({}, QString());
+            return;
+        }
+        if (status != QProcess::NormalExit || exitCode != 0) {
+            Q_EMIT finished({}, log.isEmpty() ? QStringLiteral("ffmpeg failed") : log);
+            return;
+        }
+        Q_EMIT finished(SilenceAnalyzer::parseFfmpegSilenceLog(log), QString());
+    });
+}
+
+void SilenceAnalysisJob::start(const QString &mediaUrl, const SilenceParams &params)
+{
+    if (m_process.state() != QProcess::NotRunning) {
+        return;
+    }
+    m_cancelled = false;
+    const QString filter = QStringLiteral("silencedetect=noise=%1dB:d=%2").arg(params.thresholdDb).arg(params.minDurationSec);
+    m_process.start(QStringLiteral("ffmpeg"), {QStringLiteral("-hide_banner"), QStringLiteral("-i"), mediaUrl, QStringLiteral("-af"), filter,
+                                              QStringLiteral("-f"), QStringLiteral("null"), QStringLiteral("-")});
+}
+
+void SilenceAnalysisJob::cancel()
+{
+    m_cancelled = true;
+    if (m_process.state() != QProcess::NotRunning) {
+        m_process.kill();
+    }
+}
+
+bool SilenceAnalysisJob::isRunning() const
+{
+    return m_process.state() != QProcess::NotRunning;
+}

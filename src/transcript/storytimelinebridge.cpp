@@ -11,7 +11,9 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "timeline2/view/timelinewidget.h"
 #include "doc/kdenlivedoc.h"
 #include "kdenlivesettings.h"
+#include "transcript/timeconvert.hpp"
 #include "effects/effectstack/model/effectstackmodel.hpp"
+#include "effects/effectsrepository.hpp"
 #include "timeline2/model/clipmodel.hpp"
 #include "timeline2/model/timelinefunctions.hpp"
 #include "timeline2/model/timelineitemmodel.hpp"
@@ -118,7 +120,7 @@ void rememberProperty(const QString &name, const QString &value, Fun &undo, Fun 
 
 void StoryTimelineBridge::fadeJoin(const std::shared_ptr<TimelineItemModel> &timeline, int frame, int fadeFrames, Fun &undo, Fun &redo)
 {
-    if (fadeFrames <= 0) {
+    if (fadeFrames <= 0 || !EffectsRepository::get()->exists(QStringLiteral("fadeout"))) {
         return;
     }
     const QVector<int> tracks = StoryTimelineBridge::unlockedTracks(timeline);
@@ -664,4 +666,79 @@ bool StoryTimelineBridge::connectSelection(const std::shared_ptr<TimelineItemMod
     storeAnchors(anchors, undo, redo);
     pCore->pushUndo(undo, redo, i18n("Connect clip"));
     return true;
+}
+
+bool StoryTimelineBridge::applySourceCuts(const std::shared_ptr<TimelineItemModel> &timeline, const QString &binId,
+                                          const QVector<QPair<double, double>> &sourceRanges, Fun &undo, Fun &redo, QString *error)
+{
+    if (!timeline || binId.isEmpty()) {
+        if (error) {
+            *error = i18n("There is no timeline clip to shorten.");
+        }
+        return false;
+    }
+    const double fps = pCore->getCurrentFps();
+    struct Span {
+        int start;
+        int end;
+    };
+    QVector<Span> spans;
+    QStringList skipped;
+    for (const QPair<double, double> &range : sourceRanges) {
+        if (!(range.second > range.first)) {
+            continue;
+        }
+        const int sourceStart = StoryTime::secondsToFrame(range.first, fps);
+        const int sourceEnd = StoryTime::secondsToFrame(range.second, fps);
+        const QVector<QPair<int, int>> pieces = spansForBinRange(timeline, binId, sourceStart, sourceEnd, &skipped);
+        for (const QPair<int, int> &piece : pieces) {
+            if (piece.second > piece.first) {
+                spans.push_back({piece.first, piece.second});
+            }
+        }
+    }
+    if (!skipped.isEmpty() && error) {
+        *error = skipped.join(QLatin1Char('\n'));
+    }
+    if (spans.isEmpty()) {
+        if (error && error->isEmpty()) {
+            *error = i18n("No timeline media overlapped the silence.");
+        }
+        return false;
+    }
+    std::sort(spans.begin(), spans.end(), [](const Span &a, const Span &b) { return a.start > b.start; });
+    for (const Span &span : spans) {
+        QString spanError;
+        if (!rippleDeleteFrames(timeline, span.start, span.end, undo, redo, &spanError)) {
+            if (error) {
+                *error = spanError;
+            }
+            return false;
+        }
+    }
+    return true;
+}
+
+double StoryTimelineBridge::sourceSecondsForTimelineFrame(const std::shared_ptr<TimelineItemModel> &timeline, const QString &binId, int frame, double fps)
+{
+    if (!timeline || !(fps > 0.0) || binId.isEmpty()) {
+        return -1.0;
+    }
+    for (int trackId : timeline->getAllTracksIds()) {
+        if (timeline->isSubtitleTrack(trackId)) {
+            continue;
+        }
+        const int clipId = timeline->getClipByPosition(trackId, frame);
+        if (clipId < 0 || !timeline->isClip(clipId) || timeline->getClipBinId(clipId) != binId) {
+            continue;
+        }
+        const int position = timeline->getClipPosition(clipId);
+        const int playtime = timeline->getClipPlaytime(clipId);
+        if (frame < position || frame >= position + playtime) {
+            continue;
+        }
+        const int sourceFrame = timeline->getClipIn(clipId) + (frame - position);
+        return StoryTime::frameToSeconds(sourceFrame, fps);
+    }
+    return -1.0;
 }

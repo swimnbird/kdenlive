@@ -180,6 +180,34 @@ TranscriptRippleResult TranscriptDocument::applyRipple(double startSec, double e
     return result;
 }
 
+TranscriptRippleResult TranscriptDocument::removeSpokenRange(double startSec, double endSec)
+{
+    TranscriptRippleResult result;
+    if (!(endSec > startSec) || !std::isfinite(endSec - startSec)) {
+        return result;
+    }
+    QVector<TranscriptWord> kept;
+    kept.reserve(words.size());
+    for (TranscriptWord word : words) {
+        const bool startsBefore = nearlyLess(word.startSec, startSec);
+        const bool endsAfter = nearlyGreater(word.endSec, endSec);
+        const bool overlaps = nearlyGreater(word.endSec, startSec) && nearlyLess(word.startSec, endSec);
+        if (!overlaps) {
+            kept.push_back(word);
+            continue;
+        }
+        if (!startsBefore && !endsAfter) {
+            result.removedIds.push_back(word.id);
+            continue;
+        }
+        word.needsRetranscribe = true;
+        result.flaggedIds.push_back(word.id);
+        kept.push_back(word);
+    }
+    words = kept;
+    return result;
+}
+
 QVector<int> TranscriptDocument::search(const QString &query) const
 {
     QVector<int> hits;

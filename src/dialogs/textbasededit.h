@@ -7,6 +7,9 @@
 
 #include "ui_textbasededit_ui.h"
 
+#include <QPair>
+
+#include "transcript/silenceanalyzer.hpp"
 #include "transcript/transcriptdocument.hpp"
 #include "undohelper.hpp"
 
@@ -166,7 +169,10 @@ private Q_SLOTS:
     void createSequenceFromSelection();
     void reviewFillers();
     void reviewPauses();
+    void finishPauseReview(const QVector<SilenceRegion> &regions, const QString &error);
     void highlightPlayhead(int frame);
+    void highlightSourceSeconds(double sourceSeconds);
+    bool applyApprovedSourceCuts(const QVector<QPair<double, double>> &ranges, bool duplicateFirst, const QString &undoText, QString *error);
     void rebuildEditorFromTranscript();
     bool rippleSourceRange(double startSec, double endSec, Fun &undo, Fun &redo, QString *error);
     /** @brief Preview current edited text in the clip monitor */
@@ -192,6 +198,8 @@ private:
     /** @brief Id of the master bin clip on which speech processing is done */
     QString m_binId;
     TranscriptDocument m_transcript;
+    SilenceAnalysisJob *m_silenceJob{nullptr};
+    SilenceParams m_pauseParams;
     /** @brief Id of the playlist which is processed from the master clip */
     QString m_refId;
     QString m_sourceUrl;

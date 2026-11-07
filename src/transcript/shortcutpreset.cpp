@@ -230,13 +230,10 @@ StoryShortcutReport StoryShortcuts::apply(KActionCollection *collection, Preset 
 
 QStringList StoryShortcuts::typingWhitelist()
 {
-    return {QStringLiteral("edit_undo"),
-            QStringLiteral("edit_redo"),
-            QStringLiteral("edit_copy"),
-            QStringLiteral("edit_cut"),
-            QStringLiteral("edit_paste"),
-            QStringLiteral("edit_select_all"),
-            QStringLiteral("file_save"),
+    // Copy, cut, paste, undo, and select-all are not listed. While the transcript
+    // is focused those keys belong to the text editor. Ctrl+J/K/L are playback
+    // alternates and are not a substitute for them.
+    return {QStringLiteral("file_save"),
             QStringLiteral("file_save_as"),
             QStringLiteral("file_quit"),
             QStringLiteral("story_text_reverse"),
@@ -245,6 +242,38 @@ QStringList StoryShortcuts::typingWhitelist()
             QStringLiteral("story_text_play"),
             QStringLiteral("story_text_mark_in"),
             QStringLiteral("story_text_mark_out")};
+}
+
+bool StoryShortcuts::isTextEditingShortcut(const QKeySequence &sequence)
+{
+    if (sequence.isEmpty() || sequence.count() != 1) {
+        return false;
+    }
+    const QList<QKeySequence::StandardKey> standard = {QKeySequence::Copy,      QKeySequence::Cut,     QKeySequence::Paste,
+                                                       QKeySequence::Undo,      QKeySequence::Redo,    QKeySequence::SelectAll,
+                                                       QKeySequence::Delete,    QKeySequence::MoveToNextChar, QKeySequence::MoveToPreviousChar,
+                                                       QKeySequence::MoveToNextWord, QKeySequence::MoveToPreviousWord,
+                                                       QKeySequence::SelectNextChar, QKeySequence::SelectPreviousChar,
+                                                       QKeySequence::SelectNextWord, QKeySequence::SelectPreviousWord};
+    for (const QKeySequence::StandardKey key : standard) {
+        if (sequence.matches(QKeySequence(key)) == QKeySequence::ExactMatch) {
+            return true;
+        }
+    }
+    const QKeyCombination combo = sequence[0];
+    const Qt::KeyboardModifiers mods = combo.keyboardModifiers();
+    const int key = combo.key();
+    const bool primary = mods.testFlag(Qt::ControlModifier) && !mods.testFlag(Qt::AltModifier) && !mods.testFlag(Qt::MetaModifier);
+    if (primary && (key == Qt::Key_C || key == Qt::Key_X || key == Qt::Key_V || key == Qt::Key_Z || key == Qt::Key_Y || key == Qt::Key_A ||
+                    key == Qt::Key_Left || key == Qt::Key_Right || key == Qt::Key_Backspace)) {
+        return true;
+    }
+    if ((mods & ~Qt::ShiftModifier) == Qt::NoModifier &&
+        (key == Qt::Key_Left || key == Qt::Key_Right || key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Backspace || key == Qt::Key_Delete ||
+         key == Qt::Key_Home || key == Qt::Key_End)) {
+        return true;
+    }
+    return false;
 }
 
 bool StoryShortcuts::suspendWhileTyping(const QString &actionId)

@@ -58,6 +58,15 @@ public:
     static bool selectClipRangeAtPlayhead(const std::shared_ptr<TimelineItemModel> &timeline);
     static bool connectSelection(const std::shared_ptr<TimelineItemModel> &timeline, QString *error);
 
+    /** Ripple-delete each source-time range on clips from binId. Later ranges are applied first.
+     *  Word source times are not modified here.
+     */
+    static bool applySourceCuts(const std::shared_ptr<TimelineItemModel> &timeline, const QString &binId,
+                                const QVector<QPair<double, double>> &sourceRanges, Fun &undo, Fun &redo, QString *error);
+
+    /** Source-media seconds under a timeline frame for a bin clip, or -1. */
+    static double sourceSecondsForTimelineFrame(const std::shared_ptr<TimelineItemModel> &timeline, const QString &binId, int frame, double fps);
+
 private:
     static void fadeJoin(const std::shared_ptr<TimelineItemModel> &timeline, int frame, int fadeFrames, Fun &undo, Fun &redo);
 };

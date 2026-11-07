@@ -380,7 +380,8 @@ public:
     /** @brief Define a thumbnail for a sequence clip. */
     void setSequenceThumbnail(const QUuid &uuid, int frame);
     /** @brief Duplicate a timeline sequence clip. Does not copy source media. */
-    bool duplicateSequenceByBinId(const QString &binId);
+    /** @param openCopy When false, the copy stays in the bin and the current timeline stays active. */
+    bool duplicateSequenceByBinId(const QString &binId, bool openCopy = true);
     /** @brief When saving or rendering, copy timewarp temporary playlists to the correct folder. */
     void moveTimeWarpToFolder(const QDir sequenceFolder, bool copy);
     /** @brief Create new sequence clip

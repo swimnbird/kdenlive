@@ -81,8 +81,6 @@ SubtitleModel::SubtitleModel(std::shared_ptr<TimelineItemModel> timeline, const 
         }
     }
 
-    registerSnap(snapModel);
-
     // Load multiple subtitle data
     QMap<std::pair<int, QString>, QString> multiSubs = pCore->currentDoc()->multiSubtitlePath(timelineUuid);
     m_subtitlesList = multiSubs;

@@ -42,8 +42,13 @@ public:
     /** Change the visible word. Returns false if the id is missing. Does not move times or edit spoken text. */
     bool correctWord(int id, const QString &display);
 
-    /** Drop words fully inside [startSec, endSec), flag partial overlaps, and shift later words earlier. */
+    /** Drop words fully inside [startSec, endSec), flag partial overlaps, and shift later words earlier.
+     *  This compacts transcript time. Timeline edits use removeSpokenRange() so source-media times stay put.
+     */
     TranscriptRippleResult applyRipple(double startSec, double endSec);
+
+    /** Drop words fully inside the source range and flag partial overlaps. Survivor source times do not move. */
+    TranscriptRippleResult removeSpokenRange(double startSec, double endSec);
 
     QVector<int> search(const QString &query) const;
     QVector<int> idsOverlapping(double startSec, double endSec) const;

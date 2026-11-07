@@ -5,6 +5,8 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 
 #pragma once
 
+#include <QObject>
+#include <QProcess>
 #include <QString>
 #include <QVector>
 
@@ -43,4 +45,22 @@ public:
     static QVector<SilenceRegion> parseFfmpegSilenceLog(const QString &log);
     static QVector<PauseEdit> planPauseEdits(const QVector<SilenceRegion> &regions, PauseEditMode mode, const SilenceParams &params,
                                              const QVector<SilenceRegion> &keepRegions);
+};
+
+/** Runs ffmpeg silencedetect without blocking the caller. The media file is only read. */
+class SilenceAnalysisJob : public QObject
+{
+    Q_OBJECT
+public:
+    explicit SilenceAnalysisJob(QObject *parent = nullptr);
+    void start(const QString &mediaUrl, const SilenceParams &params);
+    void cancel();
+    bool isRunning() const;
+
+Q_SIGNALS:
+    void finished(QVector<SilenceRegion> regions, QString error);
+
+private:
+    QProcess m_process;
+    bool m_cancelled{false};
 };

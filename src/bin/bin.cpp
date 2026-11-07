@@ -2778,7 +2778,7 @@ void Bin::slotDuplicateClip()
     }
 }
 
-bool Bin::duplicateSequenceByBinId(const QString &binId)
+bool Bin::duplicateSequenceByBinId(const QString &binId, bool openCopy)
 {
     const std::shared_ptr<ProjectClip> currentItem = m_itemModel->getClipByBinID(binId);
     if (!currentItem || currentItem->clipType() != ClipType::Timeline) {
@@ -2824,7 +2824,10 @@ bool Bin::duplicateSequenceByBinId(const QString &binId)
     Fun undo = []() { return true; };
     Fun redo = []() { return true; };
     QString newId;
-    const bool added = m_itemModel->requestAddBinClip(newId, xmlProd, parentFolderId, undo, redo, [this](const QString &id) {
+    const bool added = m_itemModel->requestAddBinClip(newId, xmlProd, parentFolderId, undo, redo, [this, openCopy](const QString &id) {
+        if (!openCopy) {
+            return;
+        }
         auto newClip = m_itemModel->getClipByBinID(id);
         if (newClip && newClip->clipType() == ClipType::Timeline) {
             pCore->projectManager()->openTimeline(id, -1, newClip->getSequenceUuid(), -1, true);

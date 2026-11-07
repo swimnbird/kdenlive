@@ -50,4 +50,6 @@ public:
     static StoryShortcutReport apply(KActionCollection *collection, Preset preset);
     static bool suspendWhileTyping(const QString &actionId);
     static QStringList typingWhitelist();
+    /** Shortcuts the text editor must receive while it is focused. Ctrl+J playback is not one of these. */
+    static bool isTextEditingShortcut(const QKeySequence &sequence);
 };

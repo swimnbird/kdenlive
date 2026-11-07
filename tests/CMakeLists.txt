@@ -47,6 +47,7 @@ set(KdenliveTest_SOURCES
     trimmingtest.cpp
     utilstest.cpp
     storyedittest.cpp
+    storyslicetest.cpp
 )
 
 include(ECMAddTests)

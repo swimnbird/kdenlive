@@ -12,6 +12,8 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QApplication>
 #include <QWidget>
 
+#include <algorithm>
+
 StoryTypingGuard::StoryTypingGuard(KActionCollection *collection, QObject *parent)
     : QObject(parent)
     , m_collection(collection)
@@ -48,15 +50,30 @@ void StoryTypingGuard::suspend()
     m_active = true;
     const auto actions = m_collection->actions();
     for (QAction *action : actions) {
-        if (action == nullptr || !StoryShortcuts::suspendWhileTyping(action->objectName())) {
+        if (action == nullptr) {
             continue;
         }
         const QList<QKeySequence> shortcuts = action->shortcuts();
         if (shortcuts.isEmpty()) {
             continue;
         }
+        const bool releaseToText = StoryShortcuts::suspendWhileTyping(action->objectName()) ||
+                                   std::any_of(shortcuts.cbegin(), shortcuts.cend(), [](const QKeySequence &sequence) {
+                                       return StoryShortcuts::isTextEditingShortcut(sequence);
+                                   });
+        if (!releaseToText) {
+            continue;
+        }
+        QList<QKeySequence> kept;
+        if (!StoryShortcuts::suspendWhileTyping(action->objectName())) {
+            for (const QKeySequence &sequence : shortcuts) {
+                if (!StoryShortcuts::isTextEditingShortcut(sequence)) {
+                    kept.push_back(sequence);
+                }
+            }
+        }
         m_saved.insert(action, shortcuts);
-        action->setShortcuts({});
+        action->setShortcuts(kept);
     }
 }
 

@@ -133,8 +133,24 @@ TEST_CASE("Story shortcut conflicts keep the higher priority command", "[StoryEd
     }
     CHECK(found);
     CHECK(StoryShortcuts::suspendWhileTyping(QStringLiteral("monitor_seek_forward")));
+    CHECK(StoryShortcuts::suspendWhileTyping(QStringLiteral("edit_copy")));
+    CHECK(StoryShortcuts::suspendWhileTyping(QStringLiteral("edit_undo")));
     CHECK_FALSE(StoryShortcuts::suspendWhileTyping(QStringLiteral("story_text_forward")));
-    CHECK_FALSE(StoryShortcuts::suspendWhileTyping(QStringLiteral("edit_undo")));
+    CHECK(StoryShortcuts::isTextEditingShortcut(QKeySequence(QKeySequence::Copy)));
+    CHECK(StoryShortcuts::isTextEditingShortcut(QKeySequence(Qt::CTRL | Qt::Key_Z)));
+    CHECK(StoryShortcuts::isTextEditingShortcut(QKeySequence(Qt::CTRL | Qt::Key_Left)));
+    CHECK_FALSE(StoryShortcuts::isTextEditingShortcut(QKeySequence(Qt::CTRL | Qt::Key_J)));
+    CHECK_FALSE(StoryShortcuts::isTextEditingShortcut(QKeySequence(Qt::Key_J)));
+}
+
+TEST_CASE("Removing spoken words keeps later source times", "[StoryEdit]")
+{
+    TranscriptDocument doc = TranscriptDocument::fromWhisperStdout(QStringLiteral("[0>3]\n[0.0>0.4]one\n[0.5>1.2]two\n[1.3>2.0]three\n"));
+    const TranscriptRippleResult removed = doc.removeSpokenRange(0.5, 1.2);
+    CHECK(removed.removedIds.size() == 1);
+    REQUIRE(doc.words.size() == 2);
+    CHECK(doc.words.at(1).display == QStringLiteral("three"));
+    CHECK(doc.words.at(1).startSec == Approx(1.3));
 }
 
 TEST_CASE("Anchors and intentional gaps follow a ripple", "[StoryEdit]")
