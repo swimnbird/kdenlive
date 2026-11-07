@@ -30,6 +30,8 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 
 #include <KRecentDirs>
 
+#include <memory>
+
 class AbstractProjectItem;
 class BinItemDelegate;
 class BinListItemDelegate;
@@ -52,6 +54,9 @@ class QMenu;
 class QScrollArea;
 class QTimeLine;
 class QToolBar;
+class QLabel;
+class QSlider;
+class QSortFilterProxyModel;
 class QToolButton;
 class QUndoCommand;
 class QVBoxLayout;
@@ -588,8 +593,18 @@ private:
     std::shared_ptr<ProjectItemModel> m_itemModel;
     QAbstractItemView *m_itemView;
     QSplitter *m_storySplit{nullptr};
+    QWidget *m_storyFolderPane{nullptr};
+    QWidget *m_storyBrowserPane{nullptr};
+    QVBoxLayout *m_storyBrowserLayout{nullptr};
     QTreeView *m_storyFolders{nullptr};
+    QToolButton *m_storyAllMedia{nullptr};
+    QLabel *m_storySourceLabel{nullptr};
+    QSlider *m_storyZoom{nullptr};
+    std::unique_ptr<QSortFilterProxyModel> m_storyFolderProxy;
     bool m_storyBrowser{false};
+    void bindStoryFolders();
+    void syncStoryFolderSelection();
+    void updateStorySourceLine();
     BinItemDelegate *m_binTreeViewDelegate;
     BinListItemDelegate *m_binListViewDelegate;
     std::unique_ptr<ProjectSortProxyModel> m_proxyModel;

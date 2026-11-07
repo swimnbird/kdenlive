@@ -309,6 +309,10 @@ void AssetPanel::showEffectStack(const QString &itemName, const std::shared_ptr<
     m_timelineButton->setVisible(enableKeyframes);
     m_timelineButton->setActive(showKeyframes);
     m_effectStackWidget->setModel(effectsModel, frameSize);
+    if (id.type == KdenliveObjectType::TimelineClip && KdenliveSettings::storyAppearance() == QLatin1String("story") &&
+        KdenliveSettings::enableBuiltInEffects()) {
+        m_effectStackWidget->expandBuiltInTransform();
+    }
     m_maskManager->setOwner(id);
     if (m_showMaskPanel->isChecked()) {
         m_maskManager->setVisible(true);

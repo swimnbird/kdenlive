@@ -146,7 +146,9 @@ CollapsibleEffectView::CollapsibleEffectView(const QString &effectName, const st
     connect(m_model.get(), &AssetParameterModel::enabledChange, this, &CollapsibleEffectView::enableView);
     if (!effectModel->isAssetEnabled()) {
         title->setEnabled(false);
-        if (KdenliveSettings::disable_effect_parameters()) {
+        const bool storyTransform = KdenliveSettings::storyAppearance() == QLatin1String("story") && effectId == QLatin1String("qtblend") &&
+                                    effectModel->getOwnerId().type == KdenliveObjectType::TimelineClip;
+        if (KdenliveSettings::disable_effect_parameters() && !storyTransform) {
             widgetFrame->setEnabled(false);
         }
         m_enabledButton->setActive(true);
@@ -1001,8 +1003,10 @@ void CollapsibleEffectView::enableView(bool enabled)
 {
     m_enabledButton->setActive(!enabled);
     title->setEnabled(enabled);
+    const bool storyTransform = m_model && KdenliveSettings::storyAppearance() == QLatin1String("story") &&
+                                m_model->getAssetId() == QLatin1String("qtblend") && m_model->getOwnerId().type == KdenliveObjectType::TimelineClip;
     if (!enabled) {
-        if (KdenliveSettings::disable_effect_parameters()) {
+        if (KdenliveSettings::disable_effect_parameters() && !storyTransform) {
             widgetFrame->setEnabled(false);
         }
     } else {
@@ -1222,8 +1226,17 @@ void CollapsibleEffectView::enableAndExpand()
         m_enabledButton->setActive(false);
         slotDisable(false);
     }
-    m_collapse->setActive(false);
+    expandWithoutUndo();
     Q_EMIT activateEffect(m_model->row());
+}
+
+void CollapsibleEffectView::expandWithoutUndo()
+{
+    if (m_collapse->isActive()) {
+        m_collapse->setActive(false);
+    } else {
+        slotSwitch(false);
+    }
 }
 
 void CollapsibleEffectView::collapseEffect(bool collapse)

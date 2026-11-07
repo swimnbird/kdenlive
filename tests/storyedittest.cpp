@@ -17,6 +17,9 @@
 #include "transcript/storytimelinebridge.hpp"
 #include "transcript/timeconvert.hpp"
 #include "transcript/transcriptdocument.hpp"
+#include "effects/effectstack/model/effectitemmodel.hpp"
+#include "effects/effectstack/model/effectstackmodel.hpp"
+#include "kdenlivesettings.h"
 
 #include <KActionCollection>
 #include <QAction>
@@ -343,19 +346,51 @@ TEST_CASE("Story layout keeps a full-width timeline under the viewer", "[StoryLa
     const QJsonObject top = rows.at(0).toObject();
     const QJsonObject bottom = rows.at(1).toObject();
     CHECK(top.value(QStringLiteral("orientation")).toInt() == 1);
-    CHECK(bottom.value(QStringLiteral("orientation")).toInt() == 1);
+    CHECK(bottom.value(QStringLiteral("guestId")).toString() == QStringLiteral("13767"));
     const QJsonArray topChildren = top.value(QStringLiteral("children")).toArray();
-    const QJsonArray bottomChildren = bottom.value(QStringLiteral("children")).toArray();
     REQUIRE(topChildren.size() == 3);
-    REQUIRE(bottomChildren.size() == 2);
     const QString viewerId = topChildren.at(1).toObject().value(QStringLiteral("guestId")).toString();
     const QString inspectorId = topChildren.at(2).toObject().value(QStringLiteral("guestId")).toString();
-    const QString timelineId = bottomChildren.at(0).toObject().value(QStringLiteral("guestId")).toString();
-    const QString transitionsId = bottomChildren.at(1).toObject().value(QStringLiteral("guestId")).toString();
     CHECK(frames.value(viewerId).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("projectmonitor")));
     CHECK(frames.value(inspectorId).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("effect_stack")));
-    CHECK(frames.value(timelineId).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("timeline")));
-    CHECK(frames.value(transitionsId).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("transition_list")));
-    const double timelineShare = bottomChildren.at(0).toObject().value(QStringLiteral("sizingInfo")).toObject().value(QStringLiteral("percentageWithinParent")).toDouble();
-    CHECK(timelineShare > 0.6);
+    CHECK(frames.value(QStringLiteral("13767")).toObject().value(QStringLiteral("dockWidgets")).toArray().contains(QStringLiteral("timeline")));
+    CHECK_FALSE(frames.contains(QStringLiteral("14001")));
+    const double timelineShare = bottom.value(QStringLiteral("sizingInfo")).toObject().value(QStringLiteral("percentageWithinParent")).toDouble();
+    CHECK(timelineShare > 0.35);
+}
+
+TEST_CASE("Timeline clip transform parameter can be undone", "[StoryInspector]")
+{
+    auto binModel = pCore->projectItemModel();
+    binModel->clean();
+    std::shared_ptr<DocUndoStack> undoStack = std::make_shared<DocUndoStack>(nullptr);
+    pCore->setCurrentProfile(QStringLiteral("dv_pal"));
+    KdenliveDoc document(undoStack, {1, 2});
+    pCore->projectManager()->testSetDocument(&document);
+    KdenliveTests::updateTimeline(false, QString(), QString(), QDateTime::currentDateTime(), 0);
+    auto timeline = document.getTimeline(document.uuid());
+    pCore->projectManager()->testSetActiveTimeline(timeline);
+    const bool previous = KdenliveSettings::enableBuiltInEffects();
+    KdenliveSettings::setEnableBuiltInEffects(true);
+    const QString binId = KdenliveTests::createProducer(pCore->getProjectProfile(), "red", binModel, 8, false);
+    int clipId = -1;
+    REQUIRE(timeline->requestClipInsertion(binId, StoryTimelineBridge::primaryVideoTrack(timeline), 0, clipId, true, false, false));
+    auto stack = timeline->getClipEffectStackModel(clipId);
+    REQUIRE(stack);
+    REQUIRE(stack->appendEffect(QStringLiteral("qtblend")));
+    auto asset = stack->getAssetModelById(QStringLiteral("qtblend"));
+    REQUIRE(asset);
+    auto effect = std::dynamic_pointer_cast<EffectItemModel>(asset);
+    REQUIRE(effect);
+    CHECK_FALSE(effect->hideFromStack());
+    const QString before = effect->getParamFromName(QStringLiteral("rotation")).toString();
+    effect->setParametersFromTask({{QStringLiteral("rotation"), QStringLiteral("15")}});
+    const QString changed = effect->getParamFromName(QStringLiteral("rotation")).toString();
+    CHECK(changed.contains(QLatin1String("15")));
+    CHECK(changed != before);
+    undoStack->undo();
+    CHECK(effect->getParamFromName(QStringLiteral("rotation")).toString() == before);
+    KdenliveSettings::setEnableBuiltInEffects(previous);
+    pCore->projectManager()->testSetActiveTimeline(nullptr);
+    pCore->projectManager()->testSetDocument(nullptr);
 }

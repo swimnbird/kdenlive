@@ -55,6 +55,9 @@ public:
     /** @brief Add an effect to the current stack
      */
     bool addEffect(const QString &effectId);
+    /** @brief Expand the built-in qtblend Transform group when it is on the stack. */
+    void expandBuiltInTransform();
+    void revealBuiltInTransform();
     /** @brief Returns true if effectstack is empty
      */
     bool isEmpty() const;

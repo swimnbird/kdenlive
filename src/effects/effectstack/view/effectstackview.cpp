@@ -664,6 +664,39 @@ ObjectId EffectStackView::stackOwner() const
     return ObjectId();
 }
 
+void EffectStackView::expandBuiltInTransform()
+{
+    // loadEffects queues CollapsibleEffectView::slotSwitch(collapsed). Run after that call
+    // so the Transform group stays open and its existing fields stay editable.
+    QTimer::singleShot(0, this, [this]() {
+        QTimer::singleShot(0, this, [this]() { revealBuiltInTransform(); });
+    });
+}
+
+void EffectStackView::revealBuiltInTransform()
+{
+    if (!m_model) {
+        return;
+    }
+    for (int i = 0; i < m_model->rowCount(); ++i) {
+        std::shared_ptr<AbstractEffectItem> row = m_model->getEffectStackRow(i);
+        if (!row || row->childCount() > 0) {
+            continue;
+        }
+        auto item = std::static_pointer_cast<EffectItemModel>(row);
+        if (!item || item->getAssetId() != QLatin1String("qtblend")) {
+            continue;
+        }
+        item->setCollapsed(false);
+        const QModelIndex ix = m_filter->mapFromSource(m_model->getIndexFromItem(item));
+        auto *view = qobject_cast<CollapsibleEffectView *>(m_effectsTree->indexWidget(ix));
+        if (view != nullptr) {
+            view->expandWithoutUndo();
+        }
+        return;
+    }
+}
+
 bool EffectStackView::addEffect(const QString &effectId)
 {
     if (m_model) {

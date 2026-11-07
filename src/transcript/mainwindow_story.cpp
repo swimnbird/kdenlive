@@ -219,6 +219,10 @@ void MainWindow::applyStoryAppearance(bool enabled)
 {
     if (!enabled) {
         KColorSchemeManager::instance()->activateSchemeId(QString());
+        if (m_storyBuiltInSaved) {
+            KdenliveSettings::setEnableBuiltInEffects(m_storyPreviousBuiltIn);
+            m_storyBuiltInSaved = false;
+        }
         applyStoryMetrics(false);
         applyStoryDockChrome(false);
         if (pCore->bin() != nullptr) {
@@ -226,6 +230,13 @@ void MainWindow::applyStoryAppearance(bool enabled)
         }
         return;
     }
+    if (!m_storyBuiltInSaved) {
+        m_storyPreviousBuiltIn = KdenliveSettings::enableBuiltInEffects();
+        m_storyBuiltInSaved = true;
+    }
+    // qtblend is Kdenlive's built-in Transform: rectangle, rotation, compositing, and opacity.
+    // It stays hidden unless this existing preference is on. Story appearance turns it on for the session.
+    KdenliveSettings::setEnableBuiltInEffects(true);
     const QString path = storySchemePath();
     if (QFile::exists(path)) {
         const QString genericDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/color-schemes");

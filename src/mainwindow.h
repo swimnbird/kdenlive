@@ -236,6 +236,8 @@ protected:
      *     true otherwise */
     bool queryClose() override;
     bool m_windowClosing{false};
+    bool m_storyBuiltInSaved{false};
+    bool m_storyPreviousBuiltIn{false};
     void closeEvent(QCloseEvent *) override;
     QSize sizeHint() const override;
     bool eventFilter(QObject *object, QEvent *event) override;
