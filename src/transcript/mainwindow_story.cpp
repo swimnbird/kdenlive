@@ -98,16 +98,18 @@ void MainWindow::setupStoryEditing()
     };
     alternate(QStringLiteral("story_text_reverse"), i18n("Play reverse while typing"), Qt::CTRL | Qt::Key_J,
               actionCollection()->action(QStringLiteral("monitor_seek_backward")));
-    alternate(QStringLiteral("story_text_pause"), i18n("Pause while typing"), Qt::CTRL | Qt::Key_K, actionCollection()->action(QStringLiteral("monitor_pause")));
+    // Ctrl+K is already Kdenlive's cut shortcut in the editing schemes, so pause-while-typing uses Ctrl+Shift+K.
+    alternate(QStringLiteral("story_text_pause"), i18n("Pause while typing"), Qt::CTRL | Qt::SHIFT | Qt::Key_K,
+              actionCollection()->action(QStringLiteral("monitor_pause")));
     alternate(QStringLiteral("story_text_forward"), i18n("Play forward while typing"), Qt::CTRL | Qt::Key_L,
               actionCollection()->action(QStringLiteral("monitor_seek_forward")));
-    alternate(QStringLiteral("story_text_play"), i18n("Play or pause while typing"), Qt::CTRL | Qt::Key_Space,
-              actionCollection()->action(QStringLiteral("monitor_play")));
-    alternate(QStringLiteral("story_text_mark_in"), i18n("Set range start while typing"), Qt::CTRL | Qt::Key_I, actionCollection()->action(QStringLiteral("mark_in")));
-    alternate(QStringLiteral("story_text_mark_out"), i18n("Set range end while typing"), Qt::CTRL | Qt::Key_O, actionCollection()->action(QStringLiteral("mark_out")));
+    // Ctrl+Space, Ctrl+I, and Ctrl+O already belong to Play Zone, Insert Zone, and Open.
 
     new StoryTypingGuard(actionCollection(), this);
+}
 
+void MainWindow::applyStartupStoryPreset()
+{
     if (KdenliveSettings::storyKeyboardPreset() == QLatin1String("story") && KdenliveSettings::storyPresetEpoch() < 1) {
         const StoryShortcutReport report = StoryShortcuts::apply(actionCollection(), StoryShortcuts::Preset::Story);
         KdenliveSettings::setStoryKeyboardPreset(QStringLiteral("story"));

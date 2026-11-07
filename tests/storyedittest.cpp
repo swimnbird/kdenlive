@@ -10,6 +10,7 @@
 #include "core.h"
 #include "doc/docundostack.hpp"
 #include "doc/kdenlivedoc.h"
+#include "timeline2/model/timelinefunctions.hpp"
 #include "transcript/fillerreview.hpp"
 #include "transcript/shortcutpreset.hpp"
 #include "transcript/silenceanalyzer.hpp"
@@ -17,7 +18,11 @@
 #include "transcript/timeconvert.hpp"
 #include "transcript/transcriptdocument.hpp"
 
+#include <KActionCollection>
+#include <QAction>
+
 #include <cmath>
+#include <unordered_set>
 
 TEST_CASE("Story time conversions are frame accurate", "[StoryEdit]")
 {
@@ -223,5 +228,89 @@ TEST_CASE("Ripple delete uses the timeline model and undoes", "[StoryEdit]")
     CHECK(remaining.first().first.second.frames(pCore->getCurrentFps()) == 130);
     rippleUndo();
     CHECK(subtitles->getAllSubtitles().first().first.second.frames(pCore->getCurrentFps()) == 150);
+    pCore->projectManager()->testSetDocument(nullptr);
+}
+
+TEST_CASE("Story preset commands select, connect, and append on the timeline", "[StoryEdit]")
+{
+    QObject parent;
+    KActionCollection collection(&parent, QStringLiteral("story-preset-test"));
+    const QStringList names = {QStringLiteral("story_range_tool"), QStringLiteral("insert_to_in_point"), QStringLiteral("story_append"),
+                               QStringLiteral("story_connect"), QStringLiteral("select_tool"), QStringLiteral("edit_copy"),
+                               QStringLiteral("edit_paste"), QStringLiteral("edit_undo")};
+    for (const QString &name : names) {
+        auto *action = new QAction(&parent);
+        action->setObjectName(name);
+        collection.addAction(name, action);
+    }
+    StoryShortcuts::apply(&collection, StoryShortcuts::Preset::Story);
+    CHECK(collection.action(QStringLiteral("story_range_tool"))->shortcut() == QKeySequence(Qt::Key_R));
+    CHECK(collection.action(QStringLiteral("insert_to_in_point"))->shortcut() == QKeySequence(Qt::Key_W));
+    CHECK(collection.action(QStringLiteral("story_append"))->shortcut() == QKeySequence(Qt::Key_E));
+    CHECK(collection.action(QStringLiteral("story_connect"))->shortcut() == QKeySequence(Qt::Key_Q));
+    CHECK(collection.action(QStringLiteral("select_tool"))->shortcut() == QKeySequence(Qt::Key_A));
+    const QList<QKeySequence> textKeys = {QKeySequence(QKeySequence::Copy), QKeySequence(QKeySequence::Paste), QKeySequence(QKeySequence::Undo),
+                                          QKeySequence(Qt::Key_Left), QKeySequence(Qt::Key_Right), QKeySequence(Qt::Key_Backspace)};
+    const QList<QAction *> actions = collection.actions();
+    for (QAction *action : actions) {
+        for (const QKeySequence &textKey : textKeys) {
+            CHECK(action->shortcut() != textKey);
+        }
+    }
+
+    auto binModel = pCore->projectItemModel();
+    binModel->clean();
+    std::shared_ptr<DocUndoStack> undoStack = std::make_shared<DocUndoStack>(nullptr);
+    pCore->setCurrentProfile(QStringLiteral("dv_pal"));
+    KdenliveDoc document(undoStack, {1, 2});
+    pCore->projectManager()->testSetDocument(&document);
+    KdenliveTests::updateTimeline(false, QString(), QString(), QDateTime::currentDateTime(), 0);
+    auto timeline = document.getTimeline(document.uuid());
+    pCore->projectManager()->testSetActiveTimeline(timeline);
+    const int primary = StoryTimelineBridge::primaryVideoTrack(timeline);
+    int otherVideo = -1;
+    for (int trackId : timeline->getAllTracksIds()) {
+        if (!timeline->isAudioTrack(trackId) && !timeline->isSubtitleTrack(trackId) && trackId != primary) {
+            otherVideo = trackId;
+        }
+    }
+    REQUIRE(primary >= 0);
+    REQUIRE(otherVideo >= 0);
+    const QString mainId = KdenliveTests::createProducer(pCore->getProjectProfile(), "red", binModel, 40, false);
+    const QString connectedId = KdenliveTests::createProducer(pCore->getProjectProfile(), "blue", binModel, 8, false);
+    const QString appendId = KdenliveTests::createProducer(pCore->getProjectProfile(), "green", binModel, 6, false);
+    int mainClip = -1;
+    int connected = -1;
+    REQUIRE(timeline->requestClipInsertion(mainId, primary, 0, mainClip, true, false, false));
+    REQUIRE(timeline->requestClipInsertion(connectedId, otherVideo, 12, connected, true, false, false));
+
+    REQUIRE(StoryTimelineBridge::selectClipRangeAtPlayhead(timeline));
+    CHECK(timeline->getCurrentSelection().count(mainClip) == 1);
+
+    timeline->requestSetSelection({connected});
+    QString error;
+    REQUIRE(StoryTimelineBridge::connectSelection(timeline, &error));
+    const QVector<StoryAnchor> anchors = StoryTimelineBridge::loadAnchors();
+    REQUIRE(anchors.size() == 1);
+    CHECK(anchors.at(0).clipId == connected);
+    CHECK(anchors.at(0).primaryClipId == mainClip);
+    CHECK(anchors.at(0).offsetFrames == 12);
+
+    const int end = timeline->duration();
+    Fun undo = []() { return true; };
+    Fun redo = []() { return true; };
+    REQUIRE(TimelineFunctions::insertZone(timeline, {primary}, appendId, end, QPoint(0, 6), false, false, undo, redo));
+    bool appended = false;
+    for (int trackId : timeline->getAllTracksIds()) {
+        const auto items = timeline->getItemsInRange(trackId, end, end + 6);
+        for (int id : items) {
+            if (timeline->isClip(id) && timeline->getClipBinId(id) == appendId && timeline->getClipPosition(id) == end) {
+                appended = true;
+            }
+        }
+    }
+    CHECK(appended);
+    CHECK(timeline->checkConsistency());
+    pCore->projectManager()->testSetActiveTimeline(nullptr);
     pCore->projectManager()->testSetDocument(nullptr);
 }

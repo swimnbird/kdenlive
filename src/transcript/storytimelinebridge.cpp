@@ -470,7 +470,7 @@ bool StoryTimelineBridge::closeUnintendedGaps(const std::shared_ptr<TimelineItem
         }
         return false;
     }
-    const QVector<StoryGap> intentional = loadGaps();
+    QVector<StoryGap> intentional = loadGaps();
     bool closed = false;
     int guard = 0;
     int cursor = 0;
@@ -483,10 +483,6 @@ bool StoryTimelineBridge::closeUnintendedGaps(const std::shared_ptr<TimelineItem
         if (blankEnd < blank) {
             break;
         }
-        if (gapIsIntentional(blank, blankEnd + 1, intentional)) {
-            cursor = blankEnd + 1;
-            continue;
-        }
         const std::pair<int, int> spacer = TimelineFunctions::requestSpacerStartOperation(timeline, primary, blank);
         if (spacer.first < 0) {
             break;
@@ -496,11 +492,50 @@ bool StoryTimelineBridge::closeUnintendedGaps(const std::shared_ptr<TimelineItem
         if (spaceStart >= start) {
             break;
         }
-        if (!TimelineFunctions::requestSpacerEndOperation(timeline, spacer.first, start, spaceStart, primary, -1, undo, redo, false)) {
+        int keep = 0;
+        for (const StoryGap &gap : intentional) {
+            const int overlapStart = std::max(gap.startFrame, spaceStart);
+            const int overlapEnd = std::min(gap.endFrame, start);
+            if (overlapEnd > overlapStart) {
+                keep += overlapEnd - overlapStart;
+            }
+        }
+        const int destination = spaceStart + keep;
+        if (destination >= start) {
+            cursor = blankEnd + 1;
+            continue;
+        }
+        if (!TimelineFunctions::requestSpacerEndOperation(timeline, spacer.first, start, destination, primary, -1, undo, redo, false)) {
             if (error) {
                 *error = i18n("A gap could not be closed.");
             }
             return false;
+        }
+        const int removedLength = start - destination;
+        QVector<StoryGap> updated = loadGaps();
+        bool movedGap = false;
+        for (StoryGap &gap : updated) {
+            if (gap.endFrame <= spaceStart) {
+                continue;
+            }
+            if (gap.startFrame >= start) {
+                gap.startFrame -= removedLength;
+                gap.endFrame -= removedLength;
+                movedGap = true;
+                continue;
+            }
+            const int overlapStart = std::max(gap.startFrame, spaceStart);
+            const int overlapEnd = std::min(gap.endFrame, start);
+            if (overlapEnd > overlapStart) {
+                const int kept = overlapEnd - overlapStart;
+                gap.startFrame = spaceStart;
+                gap.endFrame = spaceStart + kept;
+                movedGap = true;
+            }
+        }
+        if (movedGap) {
+            storeGaps(updated, undo, redo);
+            intentional = loadGaps();
         }
         closed = true;
         cursor = 0;

@@ -30,7 +30,7 @@ QVector<QPair<double, double>> StoryCleanup::choose(QWidget *parent, const QStri
     }
     layout->addWidget(list);
     auto *duplicateBox = new QCheckBox(i18n("Duplicate the sequence before applying"), &dialog);
-    duplicateBox->setChecked(true);
+    duplicateBox->setChecked(StoryCleanup::duplicateSequenceByDefault());
     layout->addWidget(duplicateBox);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     layout->addWidget(buttons);

@@ -5,55 +5,44 @@ SPDX-License-Identifier: CC0-1.0
 
 # Story editing status
 
-Baseline commit before this work: `4a4d449d97dae6dfdaa50e792e4c6b979d9fa2cf`.
+Baseline commit: `4a4d449d97dae6dfdaa50e792e4c6b979d9fa2cf`, built at `/src-baseline`. This branch is built at `/workspace/build-story` inside the Ubuntu 27.04 chroot.
 
-## Environment
+## Commands that passed
 
-The host is Ubuntu 24.04 and cannot configure this tree (Qt 6.4.2, MLT 7.22.0, ECM 5.115, no KF6). Builds and tests ran in a debootstrap of Ubuntu 27.04 (tenacious) at `/opt/tenacious`: Qt 6.11.2, KDE Frameworks 6.30.0, MLT 7.42.0, KDDockWidgets 2.4.1, OpenTimelineIO 0.18.1.
+```
+QT_QPA_PLATFORM=offscreen /workspace/build-story/bin/storyslicetest "[StorySync]"
+# 204 assertions, exit 0. Report: testingArea/sync-evidence/sync-report.txt
+# compared 68 rendered frames, 0 barcode mismatches, 2 beep peaks
 
-The unmodified commit was configured and built in `/src-baseline`. The story branch was built in `/workspace/build-story`.
+QT_QPA_PLATFORM=offscreen /workspace/build-story/bin/storyedittest "*preset*"
+# 73 assertions, exit 0
 
-## What was executed
+python3 /workspace/data/scripts/whisper/whispertotext.py \
+  -S /workspace/testingArea/sync-evidence/marked.wav \
+  -M tiny -D cpu -L en --words_json /tmp/whisper-words.json
+# exit 0. Words: Um 0.00–0.64, hello 0.74–0.96, Like 2.44–2.96
+```
 
-Unmodified `4a4d449d97` binaries under `/src-baseline/build/bin`, `QT_QPA_PLATFORM=offscreen`:
+`storyslicetest "[StorySync]"` builds 1280×720 video at 30000/1001 with a per-frame barcode, and 48 kHz audio with 2 kHz beeps plus espeak-ng “um”, “hello”, and “like”. It loads both into a real timeline, connects a B-roll clip, keeps a 15-frame intentional gap while closing the blank in front of it, approves the “um” filler and not “like”, ripple-cuts those source ranges, undoes and redoes, saves, and renders with melt (H.264, PCM). Decoded barcodes matched the timeline’s source frame within 1 frame on 68 frames. Beep peaks were 5 and 106 samples from the timeline times (one frame is about 1602 samples). Source file size and mtime were unchanged. A stale snap remains at the original clip end (frame 120); it did not move the rendered markers.
 
-| Command | Result |
-| --- | --- |
-| `kdenlive --version` | `kdenlive 26.11.70`, exit 0 |
-| `spacertest` | 217 assertions, 1 case, exit 0 |
-| `documenttest` | 10 assertions, 2 cases, exit 0 |
-| `trimmingtest` | 2539 assertions, 6 cases, exit 0 |
-| `subtitlestest` | 72 assertions, 1 case, exit 0 |
+`*preset*` applies the story keys on a real action collection (R range, W insert, E append, Q connect, A select) and checks copy, paste, undo, arrows, and Backspace are not taken. It then calls `selectClipRangeAtPlayhead`, `connectSelection`, and `TimelineFunctions::insertZone` (the append path) on a timeline.
 
-Modified branch:
+## GUI
 
-| Command | Result |
-| --- | --- |
-| `storyedittest` | 87 assertions, 9 cases, exit 0 |
-| `storyslicetest "[StorySlice]"` | 48 assertions, 1 case, exit 0 |
-| `subtitlestest` (after the subtitle snap fix) | 72 assertions, 1 case, exit 0 |
-| `kdenlive` on display `:1` with software Qt Quick | Process opened the Welcome to Kdenlive Quick Setup dialog (476×504). The main timeline was not clicked through. |
+```
+HOME=/workspace/testingArea/gui-home \
+XDG_CONFIG_HOME=$HOME/.config \
+DISPLAY=:1 QT_QPA_PLATFORM=xcb \
+QSG_RHI_BACKEND=software QT_QUICK_BACKEND=software LIBGL_ALWAYS_SOFTWARE=1 \
+/workspace/build-story/bin/kdenlive --no-welcome
+```
 
-`storyslicetest` builds a 2 second silent 320×240 H.264 file and a separate WAV (tone, silence, tone) with ffmpeg. It imports both, places a color B-roll and a subtitle after the pause, shortens the detected silence through `StoryTimelineBridge::applySourceCuts`, and checks:
+The config skips the welcome wizard. The window “Untitled / HD 1080p 25 fps — Kdenlive” opened with the project bin, timeline (V2, V1, A1, A2), and a Speech Editor tab. Startup logged `Assigned 29 shortcuts` and no missing actions.
 
-- the video and the separate audio are each split and the removed range is the same length
-- the B-roll and the subtitle move earlier by that many frames
-- surviving transcript words keep their source times
-- undo restores the B-roll and subtitle, redo applies the cut again
-- the project saves, an `Mlt::Producer` reopens it, and `melt` plus `ffprobe` match the timeline duration within 0.2 s
-- the source file size and mtime are unchanged
+An earlier build blocked on KXmlGui “Ambiguous Shortcuts” because the typing alternates used Ctrl+O (Open), Ctrl+I (Insert Zone), and Ctrl+Space (Play Zone), and Shift+Delete was on both Cut and Extract. Those story alternates were removed and the extra Cut shortcut is cleared before `setupGUI`. Pause-while-typing is Ctrl+Shift+K.
 
-That is a generated fixture, not a recorded podcast and not a GUI session.
+Not done in the window: import, typing a correction, clicking delete, the in-app Whisper venv, the cleanup dialog, save, or export. The Speech Editor tab was visible and not operated. Kdenlive’s Whisper job uses its own Python venv; that venv was not created. The script above is the one the speech editor launches.
 
-Whisper `20250625` with the tiny model ran on the host, on CPU, against an espeak-ng WAV of “hello again”. The model returned word times and the text “But go again.” No media was uploaded. Kdenlive’s speech-editor job was not pointed at this model.
+`duplicateSequenceByBinId` needs a Bin widget. Headless tests have `pCore->bin() == nullptr`, so the clone was not executed. `StoryCleanup::duplicateSequenceByDefault()` is true and the checkbox uses it.
 
-## Still not a full acceptance pass
-
-- The welcome dialog was not driven into a project, so bin import, the speech editor, and export were not clicked.
-- Pause shortening in the speech editor is asynchronous (`SilenceAnalysisJob`) and applies through the same undoable cut as the fixture. The dialog itself was not shown.
-- “Create sequence from selection” inserts the timed passage at frame 0 of a new sequence (video-only and audio-only copies). That path was not exercised in a window.
-- Connected-anchor math is unit-tested. A connected clip was not anchored and then ripple-cut in `storyslicetest`.
-- Magnetic mode still only ripples unlocked tracks for these story operations. Trim, slip, and spacer tools are unchanged. “Close unintended gaps” walks the primary video track.
-- Speed-changed clips are skipped by transcript time mapping.
-- There is no separate zoom tool. Z steps the existing zoom-in command.
-- No modified package was built.
+No package was built.

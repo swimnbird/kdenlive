@@ -222,6 +222,8 @@ public:
     bool hasRunningRenderTask() const;
     /** @brief Install the story-editing commands after the monitor actions exist. */
     void setupStoryEditing();
+    /** Apply the story preset after the standard actions exist. */
+    void applyStartupStoryPreset();
 
 protected:
     /** @brief Closes the window.

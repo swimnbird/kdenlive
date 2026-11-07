@@ -21,6 +21,8 @@ struct StoryCleanupChoice {
 class StoryCleanup
 {
 public:
+    /** Batch cleanup offers to duplicate the sequence first, and that box starts checked. */
+    static bool duplicateSequenceByDefault() { return true; }
     /** Returns the checked ranges. duplicate is set from the checkbox, which defaults to on. */
     static QVector<QPair<double, double>> choose(QWidget *parent, const QString &title, const QString &help, QVector<StoryCleanupChoice> choices,
                                                  bool *duplicate);
