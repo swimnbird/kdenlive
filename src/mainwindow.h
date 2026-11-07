@@ -228,6 +228,7 @@ public:
     void applyStartupStoryAppearance();
     /** Reapply inspector titles after a dock layout restore. */
     void applyStoryDockChrome(bool story);
+    void applyStorySurfaces(bool story);
 
 protected:
     /** @brief Closes the window.

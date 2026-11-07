@@ -105,6 +105,8 @@ Rectangle {
     property double xIntegerOffset: 0
     readonly property bool isLocked: parentTrack && parentTrack.isLocked === true
     property color borderColor: "#000000"
+    readonly property int storyRadius: K.KdenliveSettings.storyAppearance === "story" ? 6 : 0
+    radius: storyRadius
     property bool isComposition: false
     readonly property int slipOffset: boundValue(outPoint - maxDuration + 1, trimmingOffset, inPoint)
     readonly property bool trimInProgress: trimInMixArea.pressed || trimInMouseArea.pressed || trimOutMouseArea.pressed
@@ -506,6 +508,7 @@ Rectangle {
         Rectangle {
             // Border rectangle
             color: 'transparent'
+            radius: clipRoot.storyRadius
             id: itemBorder
             property int handleWidth: Math.max(2, Math.ceil(K.UiUtils.baseSizeMedium / 4))
             anchors.fill: parent

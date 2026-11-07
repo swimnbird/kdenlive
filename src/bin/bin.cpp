@@ -37,6 +37,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "mainwindow.h"
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QPainterPath>
 #include <QLabel>
 #include <QSortFilterProxyModel>
 #include <QSplitter>
@@ -728,10 +729,29 @@ public:
     {
         if (!index.data().isNull()) {
             painter->setRenderHint(QPainter::SmoothPixmapTransform, true);
+            painter->setRenderHint(QPainter::Antialiasing, true);
             QStyleOptionViewItem opt(option);
             initStyleOption(&opt, index);
             QStyle *style = opt.widget ? opt.widget->style() : QApplication::style();
-            style->drawPrimitive(QStyle::PE_PanelItemViewItem, &opt, painter, opt.widget);
+            const bool storyCard = KdenliveSettings::storyAppearance() == QLatin1String("story");
+            if (storyCard) {
+                const QRect card = opt.rect.adjusted(3, 3, -3, -3);
+                painter->save();
+                painter->setPen(Qt::NoPen);
+                if (opt.state & QStyle::State_Selected) {
+                    painter->setBrush(QColor(58, 78, 98));
+                    painter->drawRoundedRect(card, 8, 8);
+                    painter->setPen(QPen(QColor(122, 164, 200), 2));
+                    painter->setBrush(Qt::NoBrush);
+                    painter->drawRoundedRect(card.adjusted(1, 1, -1, -1), 7, 7);
+                } else if (opt.state & QStyle::State_MouseOver) {
+                    painter->setBrush(QColor(44, 44, 48));
+                    painter->drawRoundedRect(card, 8, 8);
+                }
+                painter->restore();
+            } else {
+                style->drawPrimitive(QStyle::PE_PanelItemViewItem, &opt, painter, opt.widget);
+            }
             QRect r = style->subElementRect(QStyle::SE_ItemViewItemDecoration, &opt, opt.widget);
             int type = index.data(AbstractProjectItem::ItemTypeRole).toInt();
             bool isFolder = type == AbstractProjectItem::FolderItem;
@@ -744,8 +764,15 @@ public:
                                                        : m_folderIcon.pixmap(m_folderIcon.actualSize(r.size())))
                                    : opt.icon.pixmap(opt.icon.actualSize(r.size()));
             if (!pix.isNull()) {
-                // Draw icon
-                painter->drawPixmap(r.adjusted(2, 1, -2, 1), pix, QRect(0, 0, pix.width(), pix.height()));
+                const QRect iconRect = r.adjusted(2, 1, -2, 1);
+                painter->save();
+                if (KdenliveSettings::storyAppearance() == QLatin1String("story")) {
+                    QPainterPath clip;
+                    clip.addRoundedRect(iconRect, 6, 6);
+                    painter->setClipPath(clip);
+                }
+                painter->drawPixmap(iconRect, pix, QRect(0, 0, pix.width(), pix.height()));
+                painter->restore();
             }
             m_thumbRect = r;
             QRect textRect = style->subElementRect(QStyle::SE_ItemViewItemText, &opt, opt.widget);
@@ -3819,6 +3846,7 @@ void Bin::applyStoryBrowser(bool enabled)
         libraryLayout->setContentsMargins(6, 6, 4, 6);
         libraryLayout->setSpacing(4);
         auto *libraryTitle = new QLabel(i18n("Library"), m_storyFolderPane);
+        libraryTitle->setObjectName(QStringLiteral("storyLibraryTitle"));
         libraryTitle->setAccessibleName(i18n("Library"));
         QFont titleFont = libraryTitle->font();
         titleFont.setBold(true);

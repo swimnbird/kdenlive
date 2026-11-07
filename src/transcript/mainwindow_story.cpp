@@ -17,6 +17,9 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "transcript/typingguard.hpp"
 
 #include <kddockwidgets/Config.h>
+#include <kddockwidgets/core/TitleBar.h>
+#include <kddockwidgets/qtwidgets/views/Group.h>
+#include <kddockwidgets/qtwidgets/views/TitleBar.h>
 #include <KActionCategory>
 #include <KColorScheme>
 #include <KColorSchemeManager>
@@ -26,10 +29,158 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QAction>
 #include <QApplication>
 #include <QIcon>
+#include <QImage>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QPainter>
+#include <QPainterPath>
 #include <QStandardPaths>
+#include <QTimer>
+
+namespace {
+class StoryCornerCap : public QWidget
+{
+public:
+    enum Place { TopLeft, TopRight, BottomLeft, BottomRight };
+
+    StoryCornerCap(QWidget *panel, Place place)
+        : QWidget(panel)
+        , m_place(place)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        setFixedSize(16, 16);
+        panel->installEventFilter(this);
+        placeSelf();
+        raise();
+    }
+
+    void placeSelf()
+    {
+        QWidget *panel = parentWidget();
+        if (panel == nullptr) {
+            return;
+        }
+        const int s = width();
+        int x = 0;
+        int y = 0;
+        if (m_place == TopRight || m_place == BottomRight) {
+            x = qMax(0, panel->width() - s);
+        }
+        if (m_place == BottomLeft || m_place == BottomRight) {
+            y = qMax(0, panel->height() - s);
+        }
+        move(x, y);
+        raise();
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched == parentWidget() && event->type() == QEvent::Resize) {
+            placeSelf();
+        }
+        return QWidget::eventFilter(watched, event);
+    }
+
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        constexpr int radius = 10;
+        QImage wedge(size(), QImage::Format_ARGB32_Premultiplied);
+        wedge.fill(QColor(42, 42, 46));
+        for (int y = 0; y < wedge.height(); ++y) {
+            for (int x = 0; x < wedge.width(); ++x) {
+                int lx = x;
+                int ly = y;
+                if (m_place == TopRight || m_place == BottomRight) {
+                    lx = wedge.width() - 1 - x;
+                }
+                if (m_place == BottomLeft || m_place == BottomRight) {
+                    ly = wedge.height() - 1 - y;
+                }
+                if (lx < radius && ly < radius) {
+                    const int dx = radius - lx;
+                    const int dy = radius - ly;
+                    if (dx * dx + dy * dy > radius * radius) {
+                        wedge.setPixelColor(x, y, QColor(16, 16, 18));
+                    }
+                }
+            }
+        }
+        painter.drawImage(0, 0, wedge);
+    }
+
+private:
+    Place m_place;
+};
+
+QList<QWidget *> storyOverlays;
+
+void clearStoryOverlays()
+{
+    for (QWidget *overlay : std::as_const(storyOverlays)) {
+        if (overlay != nullptr) {
+            overlay->deleteLater();
+        }
+    }
+    storyOverlays.clear();
+}
+
+void addStoryCorners(QWidget *panel)
+{
+    if (panel == nullptr || panel->width() < 20 || panel->height() < 20) {
+        return;
+    }
+    const StoryCornerCap::Place places[] = {StoryCornerCap::TopLeft, StoryCornerCap::TopRight, StoryCornerCap::BottomLeft,
+                                            StoryCornerCap::BottomRight};
+    for (StoryCornerCap::Place place : places) {
+        auto *cap = new StoryCornerCap(panel, place);
+        cap->placeSelf();
+        storyOverlays.append(cap);
+    }
+}
+
+QString storyControlStyle()
+{
+    return QStringLiteral(
+        "QToolButton {"
+        "  background: transparent;"
+        "  border: 1px solid transparent;"
+        "  border-radius: 6px;"
+        "  padding: 4px 8px;"
+        "  min-height: 26px;"
+        "  min-width: 26px;"
+        "}"
+        "QToolButton:hover { background: #34343a; }"
+        "QToolButton:pressed, QToolButton:checked {"
+        "  background: #3c4e62;"
+        "  border-color: #6d879f;"
+        "}"
+        "QToolButton:disabled { color: #6c6c72; }"
+        "QToolButton:focus { border-color: #7aa4c8; }"
+        "QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {"
+        "  background: #1c1c1f;"
+        "  color: #f0f0f2;"
+        "  border: 1px solid #3e3e44;"
+        "  border-radius: 5px;"
+        "  padding: 3px 8px;"
+        "  min-height: 22px;"
+        "}"
+        "QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus { border-color: #7aa4c8; }"
+        "QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QComboBox:disabled { color: #6c6c72; }"
+        "QComboBox::drop-down { border: none; width: 16px; }"
+        "QSlider::groove:horizontal { height: 4px; background: #3a3a40; border-radius: 2px; }"
+        "QSlider::handle:horizontal {"
+        "  background: #e4e4e8; border: none; width: 14px; margin: -6px 0; border-radius: 7px;"
+        "}"
+        "QTreeView, QListView { background: transparent; border: none; outline: none; }"
+        "QTreeView::item, QListView::item { padding: 5px 6px; min-height: 20px; border-radius: 4px; }"
+        "QTreeView::item:hover, QListView::item:hover { background: #2c2c31; }"
+        "QTreeView::item:selected, QListView::item:selected { background: #3a4e62; color: #f4f4f6; }"
+        "QWidget#draggLabel { background: #2a2a2e; border-radius: 4px; }");
+}
+}
 
 namespace {
 std::shared_ptr<TimelineItemModel> activeTimeline()
@@ -179,13 +330,23 @@ QString MainWindow::storySchemePath() const
 void MainWindow::applyStoryMetrics(bool story)
 {
     const QSize size(22, 22);
+    const QString barStyle = story ? QStringLiteral("QToolBar {"
+                                                    "  background: #222226;"
+                                                    "  border: none;"
+                                                    "  spacing: 8px;"
+                                                    "  padding: 6px 10px;"
+                                                    "}"
+                                                    "QToolBar::separator { background: #3a3a40; width: 1px; margin: 6px 4px; }") +
+                                         storyControlStyle()
+                                   : QString();
     if (KToolBar *bar = toolBar()) {
         bar->setIconSize(QSize(20, 20));
         bar->setToolButtonStyle(Qt::ToolButtonIconOnly);
-        bar->setStyleSheet(story ? QStringLiteral("QToolBar { spacing: 6px; padding: 2px 4px; }") : QString());
+        bar->setStyleSheet(barStyle);
     }
     if (m_timelineToolBar != nullptr) {
         m_timelineToolBar->setIconSize(size);
+        m_timelineToolBar->setStyleSheet(barStyle);
         const QStringList utilityTools = {QStringLiteral("favorite_effects"), QStringLiteral("timeline_preview_button"),
                                           QStringLiteral("audiomixer_button"), QStringLiteral("subtitle_tool"), QStringLiteral("mix_clip")};
         const auto actions = m_timelineToolBar->actions();
@@ -307,6 +468,70 @@ void MainWindow::applyStoryDockChrome(bool story)
     }
     if (story && pCore->bin() != nullptr) {
         pCore->bin()->applyStoryBrowser(true);
+    }
+    applyStorySurfaces(story);
+    QTimer::singleShot(800, this, [this, story]() {
+        if (KdenliveSettings::storyAppearance() == QLatin1String("story") && story) {
+            clearStoryOverlays();
+            const auto groups = findChildren<KDDockWidgets::QtWidgets::Group *>();
+            qInfo().noquote() << "story rounded groups" << groups.size();
+            for (KDDockWidgets::QtWidgets::Group *group : groups) {
+                addStoryCorners(group);
+            }
+            const auto titles = findChildren<KDDockWidgets::QtWidgets::TitleBar *>();
+            for (KDDockWidgets::QtWidgets::TitleBar *title : titles) {
+                addStoryCorners(title);
+            }
+        }
+    });
+}
+
+void MainWindow::applyStorySurfaces(bool story)
+{
+    if (!story) {
+        clearStoryOverlays();
+    }
+    const auto bars = findChildren<KDDockWidgets::QtWidgets::TitleBar *>();
+    const auto hidden = KDDockWidgets::TitleBarButtonType::AllTitleBarButtonTypes;
+    for (KDDockWidgets::QtWidgets::TitleBar *bar : bars) {
+        if (KDDockWidgets::Core::TitleBar *core = bar->titleBar()) {
+            core->setUserHiddenButtons(story ? hidden : KDDockWidgets::TitleBarButtonTypes());
+            core->updateButtons();
+        }
+        bar->setStyleSheet(story ? QStringLiteral("KDDockWidgets--QtWidgets--TitleBar {"
+                                                  "  background: #2a2a2e;"
+                                                  "  color: #e6e6ea;"
+                                                  "  border: none;"
+                                                  "  border-bottom: 1px solid #3a3a40;"
+                                                  "  min-height: 30px;"
+                                                  "  padding-left: 10px;"
+                                                  "  font-size: 12px;"
+                                                  "}")
+                                  : QString());
+    }
+    const QString panelStyle = story ? QStringLiteral("QWidget#storyLibraryColumn, QWidget#storyThumbnailBrowser {"
+                                                      "  background: #1c1c1f;"
+                                                      "}"
+                                                      "QWidget#storySourceBar {"
+                                                      "  background: #26262a;"
+                                                      "  border-radius: 6px;"
+                                                      "}"
+                                                      "QLabel#storyLibraryTitle {"
+                                                      "  color: #b8b8be;"
+                                                      "  font-size: 12px;"
+                                                      "  padding: 2px 4px 6px 4px;"
+                                                      "}") +
+                                           storyControlStyle()
+                                     : QString();
+    if (pCore->bin() != nullptr) {
+        pCore->bin()->setStyleSheet(panelStyle);
+    }
+    if (m_effectStackDock != nullptr && m_effectStackDock->widget() != nullptr) {
+        m_effectStackDock->widget()->setStyleSheet(story ? storyControlStyle() + QStringLiteral("QAbstractScrollArea { background: #1c1c1f; border: none; }")
+                                                         : QString());
+    }
+    if (m_projectMonitorDock != nullptr && m_projectMonitorDock->widget() != nullptr) {
+        m_projectMonitorDock->widget()->setStyleSheet(story ? QStringLiteral("QWidget { background: #141416; }") : QString());
     }
 }
 

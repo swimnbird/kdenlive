@@ -23,7 +23,7 @@ import 'TimelineLogic.js' as Logic
 Rectangle {
     id: root
     SystemPalette { id: activePalette }
-    color: activePalette.window
+    color: K.KdenliveSettings.storyAppearance === "story" ? "#161618" : activePalette.window
 
     required property K.TimelineController timeline
     required property K.TimelineItemModel controller
