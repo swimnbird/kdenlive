@@ -17,7 +17,9 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "transcript/typingguard.hpp"
 
 #include <kddockwidgets/Config.h>
+#include <kddockwidgets/core/DockWidget.h>
 #include <kddockwidgets/core/TitleBar.h>
+#include <kddockwidgets/qtcommon/View.h>
 #include <kddockwidgets/qtwidgets/views/DropArea.h>
 #include <kddockwidgets/qtwidgets/views/Group.h>
 #include <kddockwidgets/qtwidgets/views/Separator.h>
@@ -35,53 +37,181 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QIcon>
 #include <QCoreApplication>
 #include <QDir>
+#include <QAbstractSpinBox>
 #include <QFile>
+#include <QFormLayout>
+#include <QLineEdit>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QToolButton>
 
 namespace {
 QString storyControlStyle()
 {
+    // Numeric editors are centered on the spin box itself. Search fields stay left aligned.
+    // Checked toolbar buttons use the panel grey, not a blue fill.
     return QStringLiteral(
         "QToolButton {"
         "  background: transparent;"
+        "  color: #e6e6ea;"
         "  border: 1px solid transparent;"
         "  border-radius: 6px;"
-        "  padding: 4px 8px;"
+        "  padding: 2px 8px;"
         "  min-height: 26px;"
         "  min-width: 26px;"
+        "  font-size: 11pt;"
         "}"
-        "QToolButton:hover { background: #34343a; }"
-        "QToolButton:pressed, QToolButton:checked {"
-        "  background: #3c4e62;"
-        "  border-color: #6d879f;"
-        "}"
-        "QToolButton:disabled { color: #6c6c72; }"
-        "QToolButton:focus { border-color: #7aa4c8; }"
-        "QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {"
+        "QToolButton:hover { background: #323238; }"
+        "QToolButton:pressed { background: #26262b; }"
+        "QToolButton:checked { background: #3a3a42; color: #ffffff; border-color: #6a6a72; }"
+        "QToolButton:disabled { color: #8e8e96; background: transparent; border-color: transparent; }"
+        "QToolButton:focus { border-color: #8e8e96; }"
+        "QLineEdit, QComboBox {"
         "  background: #1c1c1f;"
         "  color: #f0f0f2;"
         "  border: 1px solid #3e3e44;"
         "  border-radius: 5px;"
         "  padding: 3px 8px;"
-        "  min-height: 22px;"
+        "  min-height: 26px;"
+        "  font-size: 12pt;"
         "}"
-        "QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus { border-color: #7aa4c8; }"
-        "QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QComboBox:disabled { color: #6c6c72; }"
+        "QSpinBox, QDoubleSpinBox {"
+        "  background: #1c1c1f;"
+        "  color: #f0f0f2;"
+        "  border: 1px solid #3e3e44;"
+        "  border-radius: 5px;"
+        "  padding: 0px;"
+        "  min-height: 28px;"
+        "  min-width: 76px;"
+        "  font-size: 12pt;"
+        "  qproperty-alignment: AlignCenter;"
+        "}"
+        "QSpinBox QLineEdit, QDoubleSpinBox QLineEdit {"
+        "  padding: 0px;"
+        "  margin: 0px;"
+        "  border: none;"
+        "  background: transparent;"
+        "  min-height: 0px;"
+        "  selection-background-color: #4a4a52;"
+        "  selection-color: #ffffff;"
+        "}"
+        "QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus { border-color: #c8c8ce; }"
+        "QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled { color: #9a9aa2; }"
         "QComboBox::drop-down { border: none; width: 16px; }"
         "QSlider::groove:horizontal { height: 4px; background: #3a3a40; border-radius: 2px; }"
         "QSlider::handle:horizontal {"
         "  background: #e4e4e8; border: none; width: 14px; margin: -6px 0; border-radius: 7px;"
         "}"
         "QTreeView, QListView { background: transparent; border: none; outline: none; }"
-        "QTreeView::item, QListView::item { padding: 5px 6px; min-height: 20px; border-radius: 4px; }"
+        "QTreeView::item, QListView::item { padding: 5px 6px; min-height: 22px; border-radius: 4px; }"
         "QTreeView::item:hover, QListView::item:hover { background: #2c2c31; }"
-        "QTreeView::item:selected, QListView::item:selected { background: #3a4e62; color: #f4f4f6; }"
-        "QWidget#draggLabel { background: #2a2a2e; border-radius: 4px; }");
+        "QTreeView::item:selected, QListView::item:selected { background: #3c4560; color: #f4f4f6; }"
+        "QWidget#draggLabel {"
+        "  background: #2a2a2e;"
+        "  border-radius: 4px;"
+        "  min-height: 28px;"
+        "}");
 }
 }
 
 namespace {
+void applyStoryInspectorMetrics(QWidget *root, bool story)
+{
+    if (root == nullptr) {
+        return;
+    }
+    const auto spins = root->findChildren<QAbstractSpinBox *>();
+    for (QAbstractSpinBox *spin : spins) {
+        if (story) {
+            spin->setAlignment(Qt::AlignCenter);
+            if (QLineEdit *edit = spin->findChild<QLineEdit *>()) {
+                edit->setAlignment(Qt::AlignCenter);
+                edit->setFrame(false);
+            }
+            spin->setMinimumHeight(28);
+        } else if (spin->minimumHeight() == 28) {
+            spin->setMinimumHeight(0);
+        }
+    }
+    const auto forms = root->findChildren<QFormLayout *>();
+    for (QFormLayout *form : forms) {
+        if (story) {
+            if (!form->property("storyFormSaved").toBool()) {
+                form->setProperty("storyH", form->horizontalSpacing());
+                form->setProperty("storyV", form->verticalSpacing());
+                form->setProperty("storyFormSaved", true);
+            }
+            form->setHorizontalSpacing(10);
+            form->setVerticalSpacing(6);
+            form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        } else if (form->property("storyFormSaved").toBool()) {
+            form->setHorizontalSpacing(form->property("storyH").toInt());
+            form->setVerticalSpacing(form->property("storyV").toInt());
+            form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            form->setProperty("storyFormSaved", false);
+        }
+    }
+}
+
+class StoryInspectorWatch : public QObject
+{
+public:
+    explicit StoryInspectorWatch(QObject *parent)
+        : QObject(parent)
+    {
+    }
+
+    void watch(QWidget *root)
+    {
+        if (m_root == root) {
+            applyStoryInspectorMetrics(root, true);
+            return;
+        }
+        if (m_root != nullptr) {
+            m_root->removeEventFilter(this);
+        }
+        m_root = root;
+        if (m_root != nullptr) {
+            m_root->installEventFilter(this);
+            applyStoryInspectorMetrics(m_root, true);
+        }
+    }
+
+    void restore()
+    {
+        if (m_root != nullptr) {
+            applyStoryInspectorMetrics(m_root, false);
+        }
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched == m_root && (event->type() == QEvent::ChildAdded || event->type() == QEvent::LayoutRequest)) {
+            if (!m_pending) {
+                m_pending = true;
+                QTimer::singleShot(0, this, [this]() {
+                    m_pending = false;
+                    if (m_root != nullptr && KdenliveSettings::storyAppearance() == QLatin1String("story")) {
+                        applyStoryInspectorMetrics(m_root, true);
+                    }
+                });
+            }
+        }
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    QWidget *m_root{nullptr};
+    bool m_pending{false};
+};
+
+StoryInspectorWatch *storyInspectorWatch(QWidget *owner)
+{
+    static StoryInspectorWatch *watch = new StoryInspectorWatch(owner);
+    return watch;
+}
+
 std::shared_ptr<TimelineItemModel> activeTimeline()
 {
     if (!pCore->window() || !pCore->window()->getCurrentTimeline()) {
@@ -179,7 +309,7 @@ void MainWindow::setupStoryEditing()
         action->setStatusTip(tip);
         action->setCheckable(true);
         action->setChecked(true);
-        connect(action, &QAction::triggered, this, [this, dockId](bool visible) { slotStoryToggleDock(dockId, visible); });
+        connect(action, &QAction::triggered, this, [this, action, dockId](bool visible) { setStoryPanelVisible(dockId, action, visible); });
         story->addAction(id, action);
     };
     // These control Kdenlive docks. The labels follow the browser / viewer / inspector / transcript
@@ -198,19 +328,89 @@ void MainWindow::setupStoryEditing()
     new StoryTypingGuard(actionCollection(), this);
 }
 
-void MainWindow::slotStoryToggleDock(const QString &dockId, bool visible)
+KDDockWidgets::QtWidgets::DockWidget *MainWindow::storyDockByName(const QString &dockId)
 {
-    auto *dock = findChild<KDDockWidgets::QtWidgets::DockWidget *>(dockId);
+    // A closed dock has no parent, so MainWindow::findChild cannot see it on the next click.
+    auto *controller = KDDockWidgets::Core::DockWidget::byName(dockId);
+    if (controller == nullptr) {
+        return nullptr;
+    }
+    return qobject_cast<KDDockWidgets::QtWidgets::DockWidget *>(KDDockWidgets::QtCommon::View_qt::asQWidget(controller));
+}
+
+void MainWindow::bindStoryPanelAction(KDDockWidgets::QtWidgets::DockWidget *dock, QAction *panelAction)
+{
+    if (dock == nullptr || panelAction == nullptr || dock->property("storyPanelBound").toBool()) {
+        if (dock != nullptr && panelAction != nullptr && panelAction->isChecked() != dock->isOpen()) {
+            panelAction->setChecked(dock->isOpen());
+        }
+        return;
+    }
+    dock->setProperty("storyPanelBound", true);
+    connect(dock, &KDDockWidgets::QtWidgets::DockWidget::isOpenChanged, panelAction, [panelAction](bool open) {
+        if (panelAction->isChecked() != open) {
+            panelAction->setChecked(open);
+        }
+    });
+    if (panelAction->isChecked() != dock->isOpen()) {
+        panelAction->setChecked(dock->isOpen());
+    }
+}
+
+void MainWindow::setStoryPanelVisible(const QString &dockId, QAction *panelAction, bool visible)
+{
+    auto *dock = storyDockByName(dockId);
     if (dock == nullptr) {
         return;
     }
-    if (visible) {
+    // One toolbar click can deliver two triggered signals before the event loop turns.
+    if (dock->property("storyToggleGuard").toBool()) {
+        return;
+    }
+    dock->setProperty("storyToggleGuard", true);
+    QTimer::singleShot(0, dock, [dock]() { dock->setProperty("storyToggleGuard", false); });
+    bindStoryPanelAction(dock, panelAction);
+    // The dock's own action is what the View menu toggles. Driving that keeps both paths on one state.
+    if (QAction *menuAction = dock->toggleAction()) {
+        if (menuAction->isChecked() != visible) {
+            menuAction->trigger();
+        } else if (visible) {
+            dock->setAsCurrentTab();
+            dock->raise();
+        }
+    } else if (visible) {
         dock->open();
         dock->setAsCurrentTab();
         dock->raise();
     } else if (dock->isOpen()) {
         dock->forceClose();
     }
+    const bool open = dock->isOpen();
+    if (panelAction != nullptr && panelAction->isChecked() != open) {
+        panelAction->setChecked(open);
+    }
+}
+
+void MainWindow::slotStoryToggleDock(const QString &dockId, bool visible)
+{
+    QAction *panelAction = nullptr;
+    const struct {
+        const char *actionId;
+        const char *id;
+    } panels[] = {
+        {"story_show_browser", "project_bin"},
+        {"story_show_viewer", "projectmonitor"},
+        {"story_show_clip", "clipmonitor"},
+        {"story_show_inspector", "effect_stack"},
+        {"story_show_transcript", "textedit"},
+    };
+    for (const auto &panel : panels) {
+        if (dockId == QLatin1String(panel.id)) {
+            panelAction = actionCollection()->action(QLatin1String(panel.actionId));
+            break;
+        }
+    }
+    setStoryPanelVisible(dockId, panelAction, visible);
 }
 
 QString MainWindow::storySchemePath() const
@@ -229,23 +429,88 @@ QString MainWindow::storySchemePath() const
 void MainWindow::applyStoryMetrics(bool story)
 {
     const QSize size(22, 22);
-    const QString barStyle = story ? QStringLiteral("QToolBar {"
-                                                    "  background: #222226;"
-                                                    "  border: none;"
-                                                    "  spacing: 8px;"
-                                                    "  padding: 6px 10px;"
-                                                    "}"
-                                                    "QToolBar::separator { background: #3a3a40; width: 1px; margin: 6px 4px; }") +
-                                         storyControlStyle()
-                                   : QString();
+    const QString barChrome = QStringLiteral("QToolBar {"
+                                             "  background: #222226;"
+                                             "  border: none;"
+                                             "  spacing: 6px;"
+                                             "  padding: 4px 8px;"
+                                             "}"
+                                             "QToolBar::separator { background: transparent; width: 8px; margin: 4px 2px; }"
+                                             "QToolBar QToolButton {"
+                                             "  background: transparent;"
+                                             "  color: #ececf0;"
+                                             "  border: 1px solid transparent;"
+                                             "  border-radius: 6px;"
+                                             "  padding: 2px 10px;"
+                                             "  min-height: 28px;"
+                                             "  font-size: 12pt;"
+                                             "}"
+                                             "QToolBar QToolButton:hover { background: #323238; }"
+                                             "QToolBar QToolButton:pressed { background: #26262b; }"
+                                             "QToolBar QToolButton:checked { background: #3a3a42; color: #ffffff; border-color: #6e6e76; }"
+                                             "QToolBar QToolButton:disabled { color: #8e8e96; }");
+    const QString barStyle = story ? barChrome : QString();
+    const QString timelineStyle = story ? QStringLiteral("QToolBar {"
+                                                         "  background: #1c1c1f;"
+                                                         "  border: none;"
+                                                         "  spacing: 2px;"
+                                                         "  padding: 2px 6px;"
+                                                         "}"
+                                                         "QToolBar QToolButton {"
+                                                         "  background: transparent;"
+                                                         "  border: none;"
+                                                         "  border-radius: 5px;"
+                                                         "  min-height: 26px;"
+                                                         "  min-width: 26px;"
+                                                         "  padding: 2px;"
+                                                         "}"
+                                                         "QToolBar QToolButton:hover { background: #323238; }"
+                                                         "QToolBar QToolButton:checked { background: #3c4560; }")
+                                      : QString();
     if (KToolBar *bar = toolBar()) {
-        bar->setIconSize(QSize(20, 20));
-        bar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        if (story) {
+            if (!bar->property("storyToolSaved").toBool()) {
+                bar->setProperty("storyToolStyle", int(bar->toolButtonStyle()));
+                bar->setProperty("storyIconW", bar->iconSize().width());
+                bar->setProperty("storyIconH", bar->iconSize().height());
+                bar->setProperty("storyToolSaved", true);
+            }
+            QFont buttonFont = bar->font();
+#ifdef Q_OS_MACOS
+            buttonFont.setFamilies({QStringLiteral(".AppleSystemUIFont"), QStringLiteral("Helvetica Neue"), buttonFont.family()});
+#else
+            buttonFont.setFamilies({QStringLiteral("Noto Sans"), QStringLiteral("DejaVu Sans"), QStringLiteral("Liberation Sans"), buttonFont.family()});
+#endif
+            buttonFont.setPointSizeF(12);
+            bar->setFont(buttonFont);
+            bar->setIconSize(QSize(18, 18));
+            bar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+            const QStringList storyButtons = {QStringLiteral("story_show_browser"), QStringLiteral("story_show_viewer"),
+                                              QStringLiteral("story_show_clip"), QStringLiteral("story_show_inspector"),
+                                              QStringLiteral("story_show_transcript")};
+            for (const QString &id : storyButtons) {
+                QAction *action = actionCollection()->action(id);
+                QWidget *widget = action == nullptr ? nullptr : bar->widgetForAction(action);
+                if (widget == nullptr) {
+                    widget = findChild<QToolButton *>(id);
+                }
+                if (auto *button = qobject_cast<QToolButton *>(widget)) {
+                    button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+                    button->setIconSize(QSize(18, 18));
+                }
+            }
+        } else if (bar->property("storyToolSaved").toBool()) {
+            bar->setFont(QApplication::font());
+            bar->setIconSize(QSize(bar->property("storyIconW").toInt(), bar->property("storyIconH").toInt()));
+            bar->setToolButtonStyle(static_cast<Qt::ToolButtonStyle>(bar->property("storyToolStyle").toInt()));
+            bar->setProperty("storyToolSaved", false);
+        }
         bar->setStyleSheet(barStyle);
     }
     if (m_timelineToolBar != nullptr) {
-        m_timelineToolBar->setIconSize(size);
-        m_timelineToolBar->setStyleSheet(barStyle);
+        m_timelineToolBar->setIconSize(story ? QSize(18, 18) : size);
+        m_timelineToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        m_timelineToolBar->setStyleSheet(timelineStyle);
         const QStringList utilityTools = {QStringLiteral("favorite_effects"), QStringLiteral("timeline_preview_button"),
                                           QStringLiteral("audiomixer_button"), QStringLiteral("subtitle_tool"), QStringLiteral("mix_clip")};
         const auto actions = m_timelineToolBar->actions();
@@ -357,19 +622,23 @@ void MainWindow::applyStoryDockChrome(bool story)
     };
     for (const auto &panel : panels) {
         QAction *action = actionCollection()->action(QLatin1String(panel.actionId));
-        auto *dock = findChild<KDDockWidgets::QtWidgets::DockWidget *>(QLatin1String(panel.dockId));
+        auto *dock = storyDockByName(QLatin1String(panel.dockId));
         if (action == nullptr || dock == nullptr) {
             continue;
         }
-        action->blockSignals(true);
-        action->setChecked(dock->isOpen());
-        action->blockSignals(false);
+        bindStoryPanelAction(dock, action);
     }
     if (story && pCore->bin() != nullptr) {
         pCore->bin()->applyStoryBrowser(true);
     }
     applyStorySurfaces(story);
-    const auto refresh = [this]() { applyStorySurfaces(KdenliveSettings::storyAppearance() == QLatin1String("story")); };
+    const auto refresh = [this]() {
+        const bool story = KdenliveSettings::storyAppearance() == QLatin1String("story");
+        applyStorySurfaces(story);
+        if (story) {
+            applyStoryMetrics(true);
+        }
+    };
     QTimer::singleShot(0, this, refresh);
     QTimer::singleShot(400, this, refresh);
 }
@@ -437,7 +706,7 @@ void MainWindow::applyStorySurfaces(bool story)
                                                   "  border-bottom: 1px solid #3a3a40;"
                                                   "  min-height: 30px;"
                                                   "  padding-left: 10px;"
-                                                  "  font-size: 12px;"
+                                                  "  font-size: 12pt;"
                                                   "}")
                                   : QString());
     }
@@ -461,6 +730,11 @@ void MainWindow::applyStorySurfaces(bool story)
     if (m_effectStackDock != nullptr && m_effectStackDock->widget() != nullptr) {
         m_effectStackDock->widget()->setStyleSheet(story ? storyControlStyle() + QStringLiteral("QAbstractScrollArea { background: #1c1c1f; border: none; }")
                                                          : QString());
+        if (story) {
+            storyInspectorWatch(m_effectStackDock->widget())->watch(m_effectStackDock->widget());
+        } else {
+            storyInspectorWatch(m_effectStackDock->widget())->restore();
+        }
     }
     if (m_projectMonitorDock != nullptr && m_projectMonitorDock->widget() != nullptr) {
         m_projectMonitorDock->widget()->setStyleSheet(story ? QStringLiteral("QWidget { background: #141416; }") : QString());

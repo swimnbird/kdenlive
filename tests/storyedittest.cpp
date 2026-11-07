@@ -5,6 +5,7 @@
 
 #include "catch.hpp"
 #include "test_utils.hpp"
+#include "mainwindow.h"
 
 #include "bin/model/subtitlemodel.hpp"
 #include "core.h"
@@ -22,11 +23,19 @@
 #include "kdenlivesettings.h"
 
 #include <KActionCollection>
+#include <KToolBar>
 #include <QAction>
+#include <QApplication>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
+#include <QToolButton>
+#include <kddockwidgets/KDDockWidgets.h>
+#include <kddockwidgets/LayoutSaver.h>
+#include <kddockwidgets/qtwidgets/views/DockWidget.h>
+#include <kddockwidgets/qtwidgets/views/MainWindow.h>
 
 #include <cmath>
 #include <unordered_set>
@@ -393,4 +402,123 @@ TEST_CASE("Timeline clip transform parameter can be undone", "[StoryInspector]")
     KdenliveSettings::setEnableBuiltInEffects(previous);
     pCore->projectManager()->testSetActiveTimeline(nullptr);
     pCore->projectManager()->testSetDocument(nullptr);
+}
+
+TEST_CASE("Story panel buttons hide and reopen the same dock", "[StoryPanels]")
+{
+    KDDockWidgets::initFrontend(KDDockWidgets::FrontendType::QtWidgets);
+    auto *window = new KDDockWidgets::QtWidgets::MainWindow(QStringLiteral("StoryPanelToggleHarness"));
+    window->resize(960, 640);
+    window->show();
+    QApplication::processEvents();
+
+    const struct {
+        const char *id;
+        KDDockWidgets::Location location;
+    } panels[] = {
+        {"project_bin", KDDockWidgets::Location_OnLeft},
+        {"projectmonitor", KDDockWidgets::Location_OnRight},
+        {"effect_stack", KDDockWidgets::Location_OnRight},
+        {"textedit", KDDockWidgets::Location_OnBottom},
+    };
+    QList<KDDockWidgets::QtWidgets::DockWidget *> docks;
+    QList<QAction *> actions;
+    QList<QToolButton *> buttons;
+    auto *bar = new KToolBar(window);
+    for (const auto &panel : panels) {
+        auto *dock = new KDDockWidgets::QtWidgets::DockWidget(QLatin1String(panel.id));
+        dock->setWidget(new QLabel(QLatin1String(panel.id)));
+        window->addDockWidget(dock, panel.location, docks.isEmpty() ? nullptr : docks.constLast());
+        auto *action = new QAction(QLatin1String(panel.id), window);
+        action->setCheckable(true);
+        action->setChecked(true);
+        MainWindow::bindStoryPanelAction(dock, action);
+        const QString dockId = QLatin1String(panel.id);
+        QObject::connect(action, &QAction::triggered, action, [action, dockId](bool visible) {
+            MainWindow::setStoryPanelVisible(dockId, action, visible);
+        });
+        bar->addAction(action);
+        auto *button = qobject_cast<QToolButton *>(bar->widgetForAction(action));
+        REQUIRE(button != nullptr);
+        docks.append(dock);
+        actions.append(action);
+        buttons.append(button);
+    }
+    bar->show();
+    QApplication::processEvents();
+
+    KDDockWidgets::LayoutSaver saver;
+    const QByteArray openLayout = saver.serializeLayout();
+    REQUIRE_FALSE(openLayout.isEmpty());
+
+    for (int i = 0; i < docks.size(); ++i) {
+        auto *dock = docks.at(i);
+        auto *action = actions.at(i);
+        auto *button = buttons.at(i);
+        REQUIRE(dock->isOpen());
+        REQUIRE(action->isChecked());
+        REQUIRE(dock->widget()->isVisible());
+
+        button->click();
+        QApplication::processEvents();
+        CHECK_FALSE(dock->isOpen());
+        CHECK_FALSE(action->isChecked());
+        CHECK(MainWindow::storyDockByName(QLatin1String(panels[i].id)) == dock);
+
+        button->click();
+        QApplication::processEvents();
+        CHECK(dock->isOpen());
+        CHECK(action->isChecked());
+        CHECK(dock->widget()->isVisible());
+
+        button->click();
+        QApplication::processEvents();
+        CHECK_FALSE(dock->isOpen());
+        dock->toggleAction()->trigger();
+        QApplication::processEvents();
+        CHECK(dock->isOpen());
+        CHECK(action->isChecked());
+        dock->toggleAction()->trigger();
+        QApplication::processEvents();
+        CHECK_FALSE(dock->isOpen());
+        CHECK_FALSE(action->isChecked());
+        button->click();
+        QApplication::processEvents();
+        CHECK(dock->isOpen());
+        CHECK(action->isChecked());
+    }
+
+    window->resize(1200, 760);
+    QApplication::processEvents();
+    for (int i = 0; i < docks.size(); ++i) {
+        CHECK(docks.at(i)->isOpen());
+        CHECK(actions.at(i)->isChecked());
+        MainWindow::bindStoryPanelAction(docks.at(i), actions.at(i));
+        CHECK(actions.at(i)->isChecked() == docks.at(i)->isOpen());
+    }
+
+    buttons.at(2)->click();
+    QApplication::processEvents();
+    CHECK_FALSE(docks.at(2)->isOpen());
+    const QByteArray closedLayout = saver.serializeLayout();
+    buttons.at(2)->click();
+    QApplication::processEvents();
+    CHECK(docks.at(2)->isOpen());
+    REQUIRE(saver.restoreLayout(closedLayout));
+    QApplication::processEvents();
+    for (int i = 0; i < docks.size(); ++i) {
+        MainWindow::bindStoryPanelAction(docks.at(i), actions.at(i));
+    }
+    CHECK_FALSE(docks.at(2)->isOpen());
+    CHECK_FALSE(actions.at(2)->isChecked());
+    REQUIRE(saver.restoreLayout(openLayout));
+    QApplication::processEvents();
+    for (int i = 0; i < docks.size(); ++i) {
+        MainWindow::bindStoryPanelAction(docks.at(i), actions.at(i));
+        CHECK(docks.at(i)->isOpen());
+        CHECK(actions.at(i)->isChecked());
+    }
+
+    window->hide();
+    delete window;
 }

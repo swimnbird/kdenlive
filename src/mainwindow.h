@@ -229,6 +229,12 @@ public:
     /** Reapply inspector titles after a dock layout restore. */
     void applyStoryDockChrome(bool story);
     void applyStorySurfaces(bool story);
+    /** Closed KDDockWidgets docks are unparented, so a child search cannot find them. */
+    static KDDockWidgets::QtWidgets::DockWidget *storyDockByName(const QString &dockId);
+    /** Opens or closes a story panel and keeps its toolbar action on the dock's real state. */
+    static void setStoryPanelVisible(const QString &dockId, QAction *panelAction, bool visible);
+    /** Follows View-menu and layout changes so the toolbar check matches the dock. */
+    static void bindStoryPanelAction(KDDockWidgets::QtWidgets::DockWidget *dock, QAction *panelAction);
 
 protected:
     /** @brief Closes the window.
