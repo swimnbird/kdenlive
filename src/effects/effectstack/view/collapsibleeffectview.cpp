@@ -146,7 +146,9 @@ CollapsibleEffectView::CollapsibleEffectView(const QString &effectName, const st
     connect(m_model.get(), &AssetParameterModel::enabledChange, this, &CollapsibleEffectView::enableView);
     if (!effectModel->isAssetEnabled()) {
         title->setEnabled(false);
-        if (KdenliveSettings::disable_effect_parameters()) {
+        const bool storyTransform = KdenliveSettings::storyAppearance() == QLatin1String("story") && effectId == QLatin1String("qtblend") &&
+                                    effectModel->getOwnerId().type == KdenliveObjectType::TimelineClip;
+        if (KdenliveSettings::disable_effect_parameters() && !storyTransform) {
             widgetFrame->setEnabled(false);
         }
         m_enabledButton->setActive(true);
@@ -270,7 +272,11 @@ CollapsibleEffectView::CollapsibleEffectView(const QString &effectName, const st
     title->setText(effectName);
     auto ft = font();
     ft.setBold(true);
+    if (KdenliveSettings::storyAppearance() == QLatin1String("story")) {
+        ft.setPointSizeF(12);
+    }
     title->setFont(ft);
+    applyStoryChrome(KdenliveSettings::storyAppearance() == QLatin1String("story"));
 
     m_view = new AssetParameterView(this);
     const std::shared_ptr<AssetParameterModel> effectParamModel = std::static_pointer_cast<AssetParameterModel>(effectModel);
@@ -372,6 +378,7 @@ CollapsibleEffectView::CollapsibleEffectView(const QString &effectName, const st
         cb->installEventFilter(this);
         cb->setFocusPolicy(Qt::StrongFocus);
     }
+    applyStoryChrome(KdenliveSettings::storyAppearance() == QLatin1String("story"));
     QMetaObject::invokeMethod(this, "slotSwitch", Qt::QueuedConnection, Q_ARG(bool, m_model->isCollapsed()));
 }
 
@@ -535,6 +542,151 @@ QDomElement CollapsibleEffectView::effectForSave() const
 bool CollapsibleEffectView::isActive() const
 {
     return m_isActive;
+}
+
+void CollapsibleEffectView::applyStoryChrome(bool story)
+{
+    if (story) {
+        m_bgColor = QColor(0x1c, 0x1c, 0x1f);
+        m_bgColorTitle = QColor(0x2a, 0x2a, 0x2e);
+        m_hoverColor = QColor(0x26, 0x26, 0x2a);
+        m_hoverColorTitle = QColor(0x32, 0x32, 0x36);
+        m_activeColor = QColor(0x22, 0x22, 0x26);
+        m_activeColorTitle = QColor(0x2c, 0x2c, 0x30);
+    } else {
+        const QPalette base = palette();
+        KColorScheme scheme(QApplication::palette().currentColorGroup(), KColorScheme::View);
+        m_bgColor = base.color(QPalette::Active, QPalette::Window);
+        m_bgColorTitle = base.color(QPalette::Active, QPalette::AlternateBase);
+        const QColor selectedBg = scheme.decoration(KColorScheme::FocusColor).color();
+        m_hoverColor = KColorUtils::mix(m_bgColor, selectedBg, 0.07);
+        m_hoverColorTitle = KColorUtils::mix(m_bgColor, selectedBg, 0.1);
+        const QColor hoverColor = scheme.decoration(KColorScheme::HoverColor).color();
+        m_activeColor = KColorUtils::mix(m_bgColor, hoverColor, 0.2);
+        m_activeColorTitle = KColorUtils::mix(m_bgColor, hoverColor, 0.3);
+    }
+    QPalette pal = palette();
+    pal.setColor(QPalette::Active, QPalette::Base, m_isActive ? m_activeColor : m_bgColor);
+    decoframe->setPalette(pal);
+    pal.setColor(QPalette::Active, QPalette::Base, m_isActive ? m_activeColorTitle : m_bgColorTitle);
+    frame->setPalette(pal);
+    if (m_model && m_model->getAssetId() == QLatin1String("qtblend") && title != nullptr) {
+        const QString full = EffectsRepository::get()->getName(QStringLiteral("qtblend"));
+        title->setToolTip(full);
+        title->setText(story ? i18n("Transform") : full);
+        QFont heading = title->font();
+        heading.setBold(true);
+        if (story) {
+            heading.setPointSizeF(12);
+        }
+        title->setFont(heading);
+        title->setMinimumWidth(0);
+        title->setSizePolicy(story ? QSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred)
+                                    : QSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Preferred));
+    }
+    if (story && frame != nullptr && title != nullptr) {
+        frame->setMinimumHeight(qMax(title->sizeHint().height(), collapseButton->sizeHint().height()) + 6);
+    }
+    if (m_storyOverflow == nullptr && frame != nullptr) {
+        m_storyOverflow = new QToolButton(frame);
+        m_storyOverflow->setObjectName(QStringLiteral("storyEffectOverflow"));
+        m_storyOverflow->setText(i18n("More"));
+        m_storyOverflow->setToolTip(i18n("More effect actions"));
+        m_storyOverflow->setPopupMode(QToolButton::InstantPopup);
+        m_storyOverflow->setAutoRaise(true);
+        auto *menu = new QMenu(m_storyOverflow);
+        const QList<QToolButton *> extras = {keyframesButton, inOutButton, presetButton, infoButton, buttonUp, buttonDown};
+        for (QToolButton *button : extras) {
+            if (button == nullptr) {
+                continue;
+            }
+            const QString label = button->toolTip().isEmpty() ? button->text() : button->toolTip();
+            QAction *action = menu->addAction(button->icon(), label);
+            connect(action, &QAction::triggered, button, &QAbstractButton::click);
+        }
+        m_storyOverflow->setMenu(menu);
+        if (auto *row = qobject_cast<QHBoxLayout *>(frame->layout())) {
+            const int delIndex = row->indexOf(buttonDel);
+            row->insertWidget(delIndex < 0 ? row->count() : delIndex, m_storyOverflow);
+        }
+    }
+    if (m_storyOverflow != nullptr) {
+        m_storyOverflow->setVisible(story);
+    }
+    const QList<QToolButton *> extras = {keyframesButton, inOutButton, presetButton, infoButton, buttonUp, buttonDown};
+    if (title != nullptr) {
+        title->setTextElideMode(story ? Qt::ElideNone : Qt::ElideRight);
+        if (story) {
+            title->setMinimumWidth(title->fontMetrics().horizontalAdvance(title->text()) + 8);
+            title->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+        } else if (!(m_model && m_model->getAssetId() == QLatin1String("qtblend"))) {
+            title->setMinimumWidth(0);
+        }
+    }
+    if (frame != nullptr) {
+        frame->setStyleSheet(story ? QStringLiteral("QFrame#frame QToolButton {"
+                                                    "  padding: 0px;"
+                                                    "  margin: 0px;"
+                                                    "  min-width: 22px;"
+                                                    "  max-width: 22px;"
+                                                    "  min-height: 22px;"
+                                                    "  max-height: 22px;"
+                                                    "}"
+                                                    "QToolButton#storyEffectOverflow {"
+                                                    "  min-width: 44px;"
+                                                    "  max-width: 64px;"
+                                                    "  padding: 0px 6px;"
+                                                    "}")
+                                   : QString());
+    }
+    const QList<QToolButton *> kept = {collapseButton, enabledButton, buttonDel, m_storyOverflow};
+    for (QToolButton *button : kept) {
+        if (button == nullptr) {
+            continue;
+        }
+        if (story && button != m_storyOverflow) {
+            button->setFixedSize(22, 22);
+            button->setIconSize(QSize(16, 16));
+        } else if (!story && button != m_storyOverflow) {
+            button->setMinimumSize(0, 0);
+            button->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+        }
+    }
+    for (QToolButton *button : extras) {
+        if (button == nullptr) {
+            continue;
+        }
+        if (story) {
+            if (!button->property("storyVisSaved").toBool()) {
+                button->setProperty("storyWasVisible", button->isVisible());
+                button->setProperty("storyVisSaved", true);
+            }
+            button->setVisible(false);
+            button->setFixedSize(0, 0);
+        } else if (button->property("storyVisSaved").toBool()) {
+            button->setVisible(button->property("storyWasVisible").toBool());
+            button->setMinimumSize(0, 0);
+            button->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+            button->setProperty("storyVisSaved", false);
+        }
+    }
+    if (auto *row = qobject_cast<QHBoxLayout *>(frame->layout())) {
+        for (int i = 0; i < row->count(); ++i) {
+            QLayoutItem *item = row->itemAt(i);
+            if (QSpacerItem *spacer = item->spacerItem()) {
+                if (story) {
+                    spacer->changeSize(0, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+                } else {
+                    spacer->changeSize(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
+                }
+            }
+        }
+        const int titleIndex = row->indexOf(title);
+        if (titleIndex >= 0) {
+            row->setStretch(titleIndex, story ? 1 : 0);
+        }
+        row->invalidate();
+    }
 }
 
 bool CollapsibleEffectView::isEnabled() const
@@ -844,8 +996,12 @@ void CollapsibleEffectView::slotSwitch(bool collapse)
     zoneFrame->setFixedHeight(collapse || !m_inOutButton->isChecked() ? 0 : frame->height());
     setFixedHeight(widgetFrame->height() + border_frame->minimumHeight() + frame->minimumHeight() + zoneFrame->height());
     m_model->setCollapsed(collapse);
-    keyframesButton->setVisible(!collapse);
-    inOutButton->setVisible(!collapse);
+    const bool story = KdenliveSettings::storyAppearance() == QLatin1String("story");
+    keyframesButton->setVisible(!collapse && !story);
+    inOutButton->setVisible(!collapse && !story && m_model->getOwnerId().type != KdenliveObjectType::TimelineClip);
+    if (story) {
+        applyStoryChrome(true);
+    }
     Q_EMIT switchHeight(m_model, height());
 }
 
@@ -1001,8 +1157,10 @@ void CollapsibleEffectView::enableView(bool enabled)
 {
     m_enabledButton->setActive(!enabled);
     title->setEnabled(enabled);
+    const bool storyTransform = m_model && KdenliveSettings::storyAppearance() == QLatin1String("story") &&
+                                m_model->getAssetId() == QLatin1String("qtblend") && m_model->getOwnerId().type == KdenliveObjectType::TimelineClip;
     if (!enabled) {
-        if (KdenliveSettings::disable_effect_parameters()) {
+        if (KdenliveSettings::disable_effect_parameters() && !storyTransform) {
             widgetFrame->setEnabled(false);
         }
     } else {
@@ -1222,8 +1380,17 @@ void CollapsibleEffectView::enableAndExpand()
         m_enabledButton->setActive(false);
         slotDisable(false);
     }
-    m_collapse->setActive(false);
+    expandWithoutUndo();
     Q_EMIT activateEffect(m_model->row());
+}
+
+void CollapsibleEffectView::expandWithoutUndo()
+{
+    if (m_collapse->isActive()) {
+        m_collapse->setActive(false);
+    } else {
+        slotSwitch(false);
+    }
 }
 
 void CollapsibleEffectView::collapseEffect(bool collapse)

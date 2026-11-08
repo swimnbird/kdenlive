@@ -7,6 +7,12 @@
 
 #include "ui_textbasededit_ui.h"
 
+#include <QPair>
+
+#include "transcript/silenceanalyzer.hpp"
+#include "transcript/transcriptdocument.hpp"
+#include "undohelper.hpp"
+
 #include <QProcess>
 #include <QAction>
 #include <QTextEdit>
@@ -32,6 +38,7 @@ public:
     int lineNumberAreaWidth();
     void repaintLines();
     void cleanup();
+    void setTranscript(TranscriptDocument *document);
     /** @brief returns the link for the first word at position start in the text.
      *    This will seek forwards until a word is found in case selection starts with a space
      * @param cursor the current text cursor
@@ -78,6 +85,7 @@ private Q_SLOTS:
     
 private:
     QWidget *lineNumberArea;
+    TranscriptDocument *m_transcript{nullptr};
     int m_hoveredBlock{-1};
     int m_lastClickedBlock{-1};
     QVector <int> m_selectedBlocks;
@@ -158,6 +166,15 @@ private Q_SLOTS:
     void slotProcessSpeechStatus(int, QProcess::ExitStatus status);
     /** @brief insert currently selected zones to timeline */
     void insertToTimeline();
+    void createSequenceFromSelection();
+    void reviewFillers();
+    void reviewPauses();
+    void finishPauseReview(const QVector<SilenceRegion> &regions, const QString &error);
+    void highlightPlayhead(int frame);
+    void highlightSourceSeconds(double sourceSeconds);
+    bool applyApprovedSourceCuts(const QVector<QPair<double, double>> &ranges, bool duplicateFirst, const QString &undoText, QString *error);
+    void rebuildEditorFromTranscript();
+    bool rippleSourceRange(double startSec, double endSec, Fun &undo, Fun &redo, QString *error);
     /** @brief Preview current edited text in the clip monitor */
     void previewPlaylist(bool createNew = true);
     /** @brief Create a timeline sequence with current edit */
@@ -180,6 +197,9 @@ private:
     std::unique_ptr<QProcess> m_tCodeJob;
     /** @brief Id of the master bin clip on which speech processing is done */
     QString m_binId;
+    TranscriptDocument m_transcript;
+    SilenceAnalysisJob *m_silenceJob{nullptr};
+    SilenceParams m_pauseParams;
     /** @brief Id of the playlist which is processed from the master clip */
     QString m_refId;
     QString m_sourceUrl;

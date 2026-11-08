@@ -1049,7 +1049,7 @@
     </entry>
     <entry name="layoutsOrder" type="StringList">
       <label>Project layout order</label>
-      <default>logging,editing,audio,effects,color</default>
+      <default>story,editing,audio,effects,color,logging</default>
     </entry>
 
     <entry name="showdescriptioncolumn" type="Bool">
@@ -1697,6 +1697,60 @@
     <entry name="mediaBrowserInlinePreview" type="Bool">
       <label>Show inline preview in media browser.</label>
       <default>true</default>
+    </entry>
+    </group>
+    <group name="story">
+    <entry name="storyKeyboardPreset" type="String">
+      <label>Active keyboard preset: story or classic.</label>
+      <default>story</default>
+    </entry>
+    <entry name="storyPresetEpoch" type="Int">
+      <label>Story shortcut preset has been applied once when this is at least 1.</label>
+      <default>0</default>
+    </entry>
+    <entry name="storySkim" type="Bool">
+      <label>Seek the playhead while hovering the timeline or transcript.</label>
+      <default>false</default>
+    </entry>
+    <entry name="storyRangeTool" type="Bool">
+      <label>Drag on the timeline sets the in/out range.</label>
+      <default>false</default>
+    </entry>
+    <entry name="storyMagnetic" type="Bool">
+      <label>Optional magnetic storyline. Intentional gaps are kept.</label>
+      <default>false</default>
+    </entry>
+    <entry name="storyFillerWords" type="String">
+      <label>Comma-separated filler tokens that can be batch-approved.</label>
+      <default>um,uh,er,ah,hmm,mm</default>
+    </entry>
+    <entry name="storyCautionWords" type="String">
+      <label>Pipe-separated caution phrases that stay unchecked.</label>
+      <default>like|you know|i mean|sort of|kind of</default>
+    </entry>
+    <entry name="storySilenceThresholdDb" type="Double">
+      <label>Silence RMS threshold in dBFS.</label>
+      <default>-40</default>
+    </entry>
+    <entry name="storySilenceMinDuration" type="Double">
+      <label>Minimum silence duration in seconds.</label>
+      <default>0.4</default>
+    </entry>
+    <entry name="storySilencePadding" type="Double">
+      <label>Speech padding kept on each side of a silence, in seconds.</label>
+      <default>0.06</default>
+    </entry>
+    <entry name="storySilenceRetain" type="Double">
+      <label>Pause kept by shorten mode, in seconds.</label>
+      <default>0.12</default>
+    </entry>
+    <entry name="storyFadeFrames" type="Int">
+      <label>Audio fade applied on each side of a transcript cut, in frames.</label>
+      <default>2</default>
+    </entry>
+    <entry name="storyAppearance" type="String">
+      <label>Visual appearance: empty until chosen, story, or standard.</label>
+      <default></default>
     </entry>
     </group>
 </kcfg>

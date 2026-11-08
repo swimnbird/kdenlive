@@ -72,6 +72,8 @@ public:
     void sendStandardCommand(int command);
     /** @brief Get the row of this effect in the stack */
     int getEffectRow() const;
+    /** @brief Charcoal body and a short Transform title while Story appearance is on. */
+    void applyStoryChrome(bool story);
     /** @brief Get a pixmap for the drag operation on this effect */
     QPixmap getDragPixmap() const;
     /** @brief Get the asset id */
@@ -80,6 +82,10 @@ public:
     void collapseEffect(bool collapse);
     bool isCollapsed() const;
     bool isBuiltIn() const;
+    /** @brief Enable, expand, and record an undo command. */
+    void enableAndExpand();
+    /** @brief Expand the parameter group without pushing an enable command. */
+    void expandWithoutUndo();
 
 public Q_SLOTS:
     void slotSyncEffectsPos(int pos);
@@ -114,7 +120,6 @@ private Q_SLOTS:
     void slotUpdateRegionEffectParams(const QDomElement & /*old*/, const QDomElement & /*e*/, int /*ix*/);
     void updateEffectZone();
     void slotHideKeyframes(bool hide);
-    void enableAndExpand();
 
 private:
     AssetParameterView *m_view;
@@ -144,6 +149,7 @@ private:
     QColor m_activeColor;
     QColor m_activeColorTitle;
     bool m_isActive{false};
+    QToolButton *m_storyOverflow{nullptr};
 
 protected:
     void mouseDoubleClickEvent(QMouseEvent *event) override;

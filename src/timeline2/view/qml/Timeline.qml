@@ -23,7 +23,7 @@ import 'TimelineLogic.js' as Logic
 Rectangle {
     id: root
     SystemPalette { id: activePalette }
-    color: activePalette.window
+    color: K.KdenliveSettings.storyAppearance === "story" ? "#161618" : activePalette.window
 
     required property K.TimelineController timeline
     required property K.TimelineItemModel controller
@@ -1378,6 +1378,7 @@ function getTrackColor(audio, header) {
             height: root.height
             x: root.headerWidth
             property bool shiftPress: false
+            property int rangeAnchor: 0
             // This provides continuous scrubbing and scimming at the left/right edges.
             hoverEnabled: true
             preventStealing: true
@@ -1407,6 +1408,9 @@ function getTrackColor(audio, header) {
                 }
             }
             onPressed: mouse => {
+                if (K.KdenliveSettings.storyRangeTool && mouse.button === Qt.LeftButton && mouse.y > ruler.height) {
+                    tracksArea.rangeAnchor = Math.round((scrollView.contentX + mouse.x) / root.timeScale)
+                }
                 focus = true
                 shiftPress = (mouse.modifiers & Qt.ShiftModifier) && (mouse.y > ruler.height) && !(mouse.modifiers & Qt.AltModifier)
                 let selectLikeTool = K.Core.activeTool === K.ToolType.SelectTool || K.Core.activeTool === K.ToolType.RippleTool
@@ -1567,6 +1571,19 @@ function getTrackColor(audio, header) {
                 }
             }
             onPositionChanged: mouse => {
+                if (!pressed && K.KdenliveSettings.storySkim && mouse.y > ruler.height) {
+                    var skimFrame = Math.round((scrollView.contentX + mouse.x) / root.timeScale)
+                    root.proxy.position = Math.max(0, Math.min(skimFrame, Math.max(0, root.timeline.fullDuration - 1)))
+                }
+                if (pressed && K.KdenliveSettings.storyRangeTool && mouse.y > ruler.height && (mouse.buttons & Qt.LeftButton)) {
+                    var dragFrame = Math.round((scrollView.contentX + mouse.x) / root.timeScale)
+                    var rangeStart = Math.min(tracksArea.rangeAnchor, dragFrame)
+                    var rangeEnd = Math.max(tracksArea.rangeAnchor, dragFrame)
+                    if (rangeEnd > rangeStart) {
+                        root.timeline.setZone(Qt.point(rangeStart, rangeEnd), false)
+                    }
+                    return
+                }
                 let selectLikeTool = K.Core.activeTool === K.ToolType.SelectTool || K.Core.activeTool === K.ToolType.RippleTool
                 if (pressed && ((mouse.buttons === Qt.MiddleButton) || (mouse.buttons === Qt.LeftButton && selectLikeTool && (mouse.modifiers & Qt.ControlModifier) && !shiftPress))) {
                     // Pan view

@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: CC0-1.0
+# Manually dispatched native arm64 package. Standard macos-15 runner only.
+# Does not use larger runners, ci-notary, or Apple signing credentials.
+name: macOS arm64 package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - name: Preflight the standard runner
+        run: |
+          set -euxo pipefail
+          mkdir -p "$RUNNER_TEMP/preflight"
+          {
+            echo "repository=${GITHUB_REPOSITORY}"
+            echo "ref=${GITHUB_REF}"
+            echo "sha=${GITHUB_SHA}"
+            echo "runner=${RUNNER_NAME}"
+            uname -a
+            uname -m
+            sw_vers
+            sysctl -n hw.memsize hw.ncpu
+            df -h
+          } | tee "$RUNNER_TEMP/preflight/runner.txt"
+          AVAIL_KB=$(df -k / | awk 'NR==2 {print $4}')
+          MEM_BYTES=$(sysctl -n hw.memsize)
+          echo "avail_kb=${AVAIL_KB}" | tee -a "$RUNNER_TEMP/preflight/runner.txt"
+          echo "mem_bytes=${MEM_BYTES}" | tee -a "$RUNNER_TEMP/preflight/runner.txt"
+          # Craft's Qt, Frameworks, MLT, and FFmpeg cache does not fit a 14 GB standard runner.
+          if [ "$AVAIL_KB" -lt 18874368 ] || [ "$MEM_BYTES" -lt 10737418240 ]; then
+            echo "BLOCKED: standard macos-15 has too little free disk or RAM for a Craft dependency install." | tee -a "$RUNNER_TEMP/preflight/runner.txt"
+            exit 2
+          fi
+
+      - uses: actions/checkout@v4
+        if: success()
+
+      - name: Install Craft dependencies from the public cache and package
+        if: success()
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 https://invent.kde.org/packaging/craftmaster.git
+          python3 craftmaster/CraftMaster.py --config "$GITHUB_WORKSPACE/.github/craft/CraftConfig.ini" --target macos-arm-clang --setup
+          python3 craftmaster/CraftMaster.py --config "$GITHUB_WORKSPACE/.github/craft/CraftConfig.ini" --target macos-arm-clang -c -i --options virtual.ignored=True --update craft
+          python3 craftmaster/CraftMaster.py --config "$GITHUB_WORKSPACE/.github/craft/CraftConfig.ini" --target macos-arm-clang -c --install-deps --options "[CodeSigning]Enabled=False" kdenlive
+          python3 craftmaster/CraftMaster.py --config "$GITHUB_WORKSPACE/.github/craft/CraftConfig.ini" --target macos-arm-clang -c --no-cache --options "kdenlive.srcDir=$GITHUB_WORKSPACE" --options "[CodeSigning]Enabled=False" kdenlive
+          python3 craftmaster/CraftMaster.py --config "$GITHUB_WORKSPACE/.github/craft/CraftConfig.ini" --target macos-arm-clang -c --package --options "kdenlive.srcDir=$GITHUB_WORKSPACE" --options "[CodeSigning]Enabled=False" kdenlive
+          PKG=$(python3 craftmaster/CraftMaster.py --config "$GITHUB_WORKSPACE/.github/craft/CraftConfig.ini" --target macos-arm-clang -c -q --get "packageDestinationDir()" virtual/base)
+          mkdir -p "$RUNNER_TEMP/package"
+          cp -v "$PKG"/*.dmg "$RUNNER_TEMP/package/" || true
+          cp -v "$PKG"/*.app "$RUNNER_TEMP/package/" || true
+          cp -R "$GITHUB_WORKSPACE/COPYING" "$GITHUB_WORKSPACE/LICENSES" "$RUNNER_TEMP/package/"
+          {
+            echo "repository=https://github.com/${GITHUB_REPOSITORY}"
+            echo "branch=${GITHUB_REF_NAME}"
+            echo "commit=${GITHUB_SHA}"
+            echo "license=GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL"
+            echo "bundle_id=org.kde.kdenlive.story"
+            echo "min_os=13.0"
+            echo "signing=unsigned"
+            echo "notary=not used"
+          } > "$RUNNER_TEMP/package/PROVENANCE.txt"
+          (cd "$RUNNER_TEMP/package" && shasum -a 256 ./* > SHA256SUMS.txt) || true
+          find "$RUNNER_TEMP/package" -type f -name 'kdenlive' -exec file {} \; | tee "$RUNNER_TEMP/package/binary-file.txt" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-arm64-preflight-and-package
+          path: |
+            ${{ runner.temp }}/preflight
+            ${{ runner.temp }}/package
+          if-no-files-found: ignore

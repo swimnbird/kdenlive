@@ -1,0 +1,4 @@
+compared 68 frames, mismatches 0, beep peaks 2
+
+
+Snap model matched clip edges after the cut, undo, and redo (209 assertions, exit 0).

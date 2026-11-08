@@ -25,6 +25,7 @@ void LayoutCollection::initTranslations()
 {
     // Ensure we have a reference to the translated names
     QStringList translations = {i18nc("Short layout name for logging interface", "Logging"), i18nc("Short layout name for editing interface", "Editing"),
+                                i18nc("Short layout name for the transcript editing workspace", "Story"),
                                 i18nc("Short layout name for audio interface", "Audio"), i18nc("Short layout name for effects interface", "Effects"),
                                 i18nc("Short layout name for color grading interface", "Color")};
 }

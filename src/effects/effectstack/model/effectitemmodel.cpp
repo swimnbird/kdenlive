@@ -9,7 +9,83 @@
 #include "core.h"
 #include "effects/effectsrepository.hpp"
 #include "effectstackmodel.hpp"
+#include <framework/mlt_events.h>
+#include <framework/mlt_filter.h>
+#include <framework/mlt_properties.h>
+#include <framework/mlt_service.h>
+#include <cstring>
 #include <utility>
+#include <vector>
+
+namespace {
+// Same layout as mlt_events_struct in MLT 7.42. mlt_events_block only blocks
+// listeners whose data pointer matches, so a null data pointer blocks nobody.
+struct MltEventsObject
+{
+    mlt_properties owner;
+    mlt_properties listeners;
+};
+
+void collectServiceEvents(mlt_properties props, std::vector<mlt_event> &eventsOut)
+{
+    if (props == nullptr) {
+        return;
+    }
+    auto *events = static_cast<MltEventsObject *>(mlt_properties_get_data(props, "_events", nullptr));
+    if (events == nullptr || events->listeners == nullptr) {
+        return;
+    }
+    mlt_properties list = events->listeners;
+    const int groups = mlt_properties_count(list);
+    for (int group = 0; group < groups; ++group) {
+        char *name = mlt_properties_get_name(list, group);
+        if (name == nullptr || std::strncmp(name, "list:", 5) != 0) {
+            continue;
+        }
+        auto *listeners = static_cast<mlt_properties>(mlt_properties_get_data(list, name, nullptr));
+        if (listeners == nullptr) {
+            continue;
+        }
+        const int count = mlt_properties_count(listeners);
+        for (int i = 0; i < count; ++i) {
+            auto *entry = static_cast<mlt_event>(mlt_properties_get_data_at(listeners, i, nullptr));
+            if (entry != nullptr) {
+                eventsOut.push_back(entry);
+            }
+        }
+    }
+}
+
+// mlt_service_attach fires service-changed before it returns. The producer
+// turns that into producer-changed, the playlist sets its out point, and the
+// tractor refresh nests another properties lock. On MLT 7.42 that nested
+// refresh locks a destroyed properties mutex (SIGSEGV, mutex looking like a
+// double). Hold the listeners that already exist across attach, then release
+// only those. Listeners attach() itself adds must stay at block count 0.
+int attachFilterQuietly(Mlt::Service &service, Mlt::Filter &filter)
+{
+    mlt_service svc = service.get_service();
+    if (svc == nullptr) {
+        return -1;
+    }
+    mlt_properties props = MLT_SERVICE_PROPERTIES(svc);
+    mlt_properties filterProps = filter.get_filter() == nullptr ? nullptr : MLT_FILTER_PROPERTIES(filter.get_filter());
+    auto *cutParent = static_cast<mlt_service>(mlt_properties_get_data(props, "_cut_parent", nullptr));
+    mlt_properties cutProps = cutParent == nullptr ? nullptr : MLT_SERVICE_PROPERTIES(cutParent);
+    std::vector<mlt_event> blocked;
+    collectServiceEvents(props, blocked);
+    collectServiceEvents(filterProps, blocked);
+    collectServiceEvents(cutProps, blocked);
+    for (mlt_event entry : blocked) {
+        mlt_event_block(entry);
+    }
+    const int ret = service.attach(filter);
+    for (auto it = blocked.rbegin(); it != blocked.rend(); ++it) {
+        mlt_event_unblock(*it);
+    }
+    return ret;
+}
+}
 
 EffectItemModel::EffectItemModel(const QList<QVariant> &effectData, std::unique_ptr<Mlt::Properties> effect, const QDomElement &xml, const QString &effectId,
                                  const std::shared_ptr<AbstractTreeModel> &stack, bool isEnabled, QString originalDecimalPoint)
@@ -205,7 +281,7 @@ std::shared_ptr<EffectItemModel> EffectItemModel::construct(std::unique_ptr<Mlt:
 void EffectItemModel::plant(const std::weak_ptr<Mlt::Service> &service)
 {
     if (auto ptr = service.lock()) {
-        int ret = ptr->attach(filter());
+        const int ret = attachFilterQuietly(*ptr, filter());
         Q_ASSERT(ret == 0);
     } else {
         qDebug() << "Error : Cannot plant effect because parent service is not available anymore";
@@ -284,7 +360,7 @@ void EffectItemModel::plantClone(const std::weak_ptr<Mlt::Service> &service, int
                 effect->filter().set_in_and_out(in, out);
             }
             m_childEffects.insert(childId, effect);
-            int ret = ptr->attach(effect->filter());
+            const int ret = attachFilterQuietly(*ptr, effect->filter());
             if (ret == 0 && target > -1) {
                 ptr->move_filter(ptr->count() - 1, target);
             }

@@ -1,0 +1,6 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8): No such file or directory
+01:30:23.735  unknown:0 -- :::::::::: CREATING SPLASH SCREEN
+01:30:23.757  unknown:0 -- QQmlApplicationEngine failed to load component
+01:30:23.757  file::/qt/qml/org/kde/kdenlive/qmldir:-1 -- file::/qt/qml/org/kde/kdenlive/qmldir: module "org.kde.kdenlive" plugin "kdenliveLibplugin" not found
+bash: line 1: 44520 Segmentation fault         timeout 50 ./bin/storyguiharness /workspace/testingArea/sync-evidence/marked.wav
+HARNESS:139

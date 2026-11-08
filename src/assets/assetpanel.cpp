@@ -5,6 +5,7 @@
 
 #include "assetpanel.hpp"
 #include "core.h"
+#include "monitor/monitor.h"
 #include "definitions.h"
 #include "effects/effectsrepository.hpp"
 #include "effects/effectstack/model/effectitemmodel.hpp"
@@ -34,6 +35,7 @@
 #include <QMenu>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QFont>
 #include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -48,7 +50,8 @@ AssetPanel::AssetPanel(QWidget *parent)
     , m_effectStackWidget(new EffectStackView(this))
     , m_maskManager(new MaskManager(this))
 {
-    auto *buttonToolbar = new QToolBar(this);
+    m_toolbar = new QToolBar(this);
+    auto *buttonToolbar = m_toolbar;
     m_titleAction = buttonToolbar->addWidget(m_assetTitle);
     int size = style()->pixelMetric(QStyle::PM_SmallIconSize);
     QSize iconSize(size, size);
@@ -294,6 +297,9 @@ void AssetPanel::showEffectStack(const QString &itemName, const std::shared_ptr<
         break;
     }
     m_assetTitle->setText(title);
+    if (m_storyHeading != nullptr) {
+        m_storyHeading->setText(title);
+    }
     m_titleAction->setVisible(true);
     m_applyEffectGroups->menuAction()->setVisible(true);
     m_splitButton->setVisible(showSplit);
@@ -308,7 +314,35 @@ void AssetPanel::showEffectStack(const QString &itemName, const std::shared_ptr<
     }
     m_timelineButton->setVisible(enableKeyframes);
     m_timelineButton->setActive(showKeyframes);
-    m_effectStackWidget->setModel(effectsModel, frameSize);
+    // Planting the built-in transform while the timeline mouse release still holds the
+    // MLT service lock aborts in mlt_properties_get_data. Build the stack on the next turn.
+    const bool story = KdenliveSettings::storyAppearance() == QLatin1String("story");
+    const bool expandTransform = story && id.type == KdenliveObjectType::TimelineClip && KdenliveSettings::enableBuiltInEffects();
+    const int ticket = ++m_stackTicket;
+    // The timeline click seeks on the UI thread while it still owns the MLT service mutex.
+    // Pause first, then build the stack on a later turn so attach does not re-lock it.
+    QTimer::singleShot(0, this, [this, effectsModel, frameSize, story, expandTransform, ticket]() {
+        if (ticket != m_stackTicket || effectsModel == nullptr) {
+            return;
+        }
+        if (Monitor *monitor = pCore->getMonitor(Kdenlive::ProjectMonitor)) {
+            if (monitor->isPlaying()) {
+                monitor->pause();
+            }
+        }
+        QTimer::singleShot(50, this, [this, effectsModel, frameSize, story, expandTransform, ticket]() {
+            if (ticket != m_stackTicket || effectsModel == nullptr) {
+                return;
+            }
+            m_effectStackWidget->setModel(effectsModel, frameSize);
+            if (story) {
+                applyStoryHeader(true);
+            }
+            if (expandTransform) {
+                m_effectStackWidget->expandBuiltInTransform();
+            }
+        });
+    });
     m_maskManager->setOwner(id);
     if (m_showMaskPanel->isChecked()) {
         m_maskManager->setVisible(true);
@@ -370,6 +404,71 @@ void AssetPanel::clear()
     m_effectStackWidget->unsetModel();
     m_maskManager->setOwner(ObjectId(KdenliveObjectType::NoItem, {}));
     m_assetTitle->clear();
+    if (m_storyHeading != nullptr) {
+        m_storyHeading->clear();
+    }
+    ++m_stackTicket;
+}
+
+void AssetPanel::applyStoryHeader(bool story)
+{
+    if (m_toolbar == nullptr) {
+        return;
+    }
+    if (m_storyHeading == nullptr) {
+        m_storyHeading = new QLabel(this);
+        m_storyHeading->setObjectName(QStringLiteral("storyAssetTitle"));
+        m_storyHeading->setWordWrap(false);
+        QFont heading = font();
+        heading.setBold(true);
+        heading.setPointSizeF(12);
+        m_storyHeading->setFont(heading);
+        m_storyHeading->setContentsMargins(10, 4, 10, 2);
+        m_storyHeading->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        m_storyHeading->setFixedHeight(m_storyHeading->fontMetrics().height() + 10);
+        m_lay->insertWidget(0, m_storyHeading);
+        m_storyHeading->hide();
+    }
+    const QList<QAction *> extras = {m_applyEffectGroups->menuAction(), m_showMaskPanel, m_saveEffectStack, m_splitButton, m_compositionHelpLink,
+                                     m_timelineButton};
+    if (story && !m_storyHeader) {
+        if (m_storyMoreAction == nullptr) {
+            auto *more = new QToolButton(m_toolbar);
+            more->setObjectName(QStringLiteral("storyAssetOverflow"));
+            more->setText(i18n("More"));
+            more->setToolTip(i18n("More effect actions"));
+            more->setPopupMode(QToolButton::InstantPopup);
+            more->setAutoRaise(true);
+            auto *menu = new QMenu(more);
+            for (QAction *action : extras) {
+                if (action != nullptr) {
+                    menu->addAction(action);
+                }
+            }
+            more->setMenu(menu);
+            m_storyMoreAction = m_toolbar->insertWidget(m_enableStackButton, more);
+        }
+        for (QAction *action : extras) {
+            if (action != nullptr) {
+                m_toolbar->removeAction(action);
+            }
+        }
+        m_storyMoreAction->setVisible(true);
+    } else if (!story && m_storyHeader) {
+        QAction *before = m_enableStackButton;
+        for (QAction *action : extras) {
+            if (action != nullptr && !m_toolbar->actions().contains(action)) {
+                m_toolbar->insertAction(before, action);
+            }
+        }
+        if (m_storyMoreAction != nullptr) {
+            m_storyMoreAction->setVisible(false);
+        }
+    }
+    m_storyHeader = story;
+    m_storyHeading->setText(m_assetTitle->text());
+    m_storyHeading->setVisible(story && !m_assetTitle->text().isEmpty());
+    m_titleAction->setVisible(!story && !m_assetTitle->text().isEmpty());
 }
 
 void AssetPanel::processSplitEffect(bool enable)

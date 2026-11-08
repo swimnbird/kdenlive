@@ -436,8 +436,11 @@ void Core::initGUI(const QString &MltPath, const QUrl &Url, const QStringList &c
     connect(m_projectItemModel.get(), &QAbstractItemModel::dataChanged, m_mainWindow->activeBin(), &Bin::slotItemEdited);
 
     m_monitorManager = new MonitorManager(this);
+    m_mainWindow->setupStoryEditing();
     projectManager()->init(Url, clipsToLoad);
     m_mainWindow->init();
+    m_mainWindow->applyStartupStoryPreset();
+    m_mainWindow->applyStartupStoryAppearance();
 
     m_guiConstructed = true;
     m_projectItemModel->buildPlaylist(QUuid());
@@ -581,7 +584,7 @@ void Core::restoreLayout()
     }
     if (KdenliveSettings::kdockLayout().isEmpty() || !KdenliveSettings::kdockLayout().contains(QStringLiteral("KdenliveKDDock"))) {
         // No existing layout, probably first run
-        Q_EMIT loadLayoutById(QStringLiteral("editing"), true);
+        Q_EMIT loadLayoutById(QStringLiteral("story"), true);
     } else {
         Q_EMIT loadLayoutFromData(KdenliveSettings::kdockLayout().toUtf8(), true);
     }
@@ -589,6 +592,7 @@ void Core::restoreLayout()
     if (!KdenliveSettings::showtitlebars()) {
         Q_EMIT pCore->hideBars(true);
     }
+    m_mainWindow->applyStoryDockChrome(KdenliveSettings::storyAppearance() == QLatin1String("story"));
 }
 
 void Core::buildDocks()
@@ -2311,6 +2315,9 @@ std::pair<bool, bool> Core::assetHasAV(ObjectId id)
     case KdenliveObjectType::Master:
         return {true, true};
     case KdenliveObjectType::TimelineTrack: {
+        if (m_mainWindow == nullptr) {
+            return {false, true};
+        }
         auto timeline = m_mainWindow->getTimeline(id.uuid);
         if (timeline && timeline->model()->isAudioTrack(id.itemId)) {
             return {true, false};
@@ -2318,6 +2325,9 @@ std::pair<bool, bool> Core::assetHasAV(ObjectId id)
         return {false, true};
     }
     case KdenliveObjectType::TimelineClip: {
+        if (m_mainWindow == nullptr) {
+            return {false, true};
+        }
         auto timeline = m_mainWindow->getTimeline(id.uuid);
         if (timeline && timeline->model()->clipIsAudio(id.itemId)) {
             return {true, false};

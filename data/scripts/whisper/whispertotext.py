@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: 2023 Jean-Baptiste Mardelle <jb@kdenlive.org>
 # SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 
+import json
 import os
 import re
 import subprocess
@@ -142,6 +143,7 @@ def main():
     parser.add_argument("--temporary_file", help="temporary transcoding output file")
     parser.add_argument("-F", "--ffmpeg_path", help="path for ffmpeg")
     parser.add_argument("-L", "--language", help="transcription language")
+    parser.add_argument("--words_json", help="optional path for word-level JSON (does not upload media)")
     args = parser.parse_args()
 
     src = args.src
@@ -173,6 +175,17 @@ def main():
         jobArgs += f"language={language} "
 
     result = run_whisper(source, model, device, task, jobArgs)
+
+    if args.words_json:
+        # Local word timings. The source file is only read by Whisper.
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        if script_dir not in sys.path:
+            sys.path.insert(0, script_dir)
+        import wordtiming
+        payload = {"version": 1, "words": wordtiming.words_from_whisper_result(result)}
+        with open(args.words_json, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+            handle.write("\n")
 
     for i in result["segments"]:
         start_time = i["start"]

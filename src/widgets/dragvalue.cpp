@@ -13,6 +13,7 @@
 #include <KColorScheme>
 #include <KColorUtils>
 #include <KLocalizedString>
+#include <QAbstractSpinBox>
 #include <QAction>
 #include <QApplication>
 #include <QCache>
@@ -668,6 +669,22 @@ DragValue::DragValue(const QString &label, double defaultValue, int decimals, do
         connect(m_intEdit, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this,
                 static_cast<void (DragValue::*)(int)>(&DragValue::slotSetValue));
         connect(m_intEdit, &QAbstractSpinBox::editingFinished, this, &DragValue::slotEditingFinished);
+        if (QLineEdit *edit = m_intEdit->editor()) {
+            connect(edit, &QLineEdit::textEdited, this, [this]() { m_userTyping = true; });
+            connect(edit, &QLineEdit::textChanged, this, [this]() {
+                if (m_settingValue || m_userTyping || m_externalCommitPending) {
+                    return;
+                }
+                // Accessible setText changes the line edit without QSpinBox::setValue, so Undo never sees it.
+                m_externalCommitPending = true;
+                QTimer::singleShot(0, this, [this]() {
+                    m_externalCommitPending = false;
+                    if (!m_settingValue) {
+                        slotEditingFinished();
+                    }
+                });
+            });
+        }
         m_intEdit->installEventFilter(this);
     } else {
         m_doubleEdit = new MyDoubleSpinBox(this);
@@ -704,6 +721,21 @@ DragValue::DragValue(const QString &label, double defaultValue, int decimals, do
         m_doubleEdit->installEventFilter(this);
         connect(m_doubleEdit, SIGNAL(valueChanged(double)), this, SLOT(slotSetValue(double)));
         connect(m_doubleEdit, &QAbstractSpinBox::editingFinished, this, &DragValue::slotEditingFinished);
+        if (QLineEdit *edit = m_doubleEdit->editor()) {
+            connect(edit, &QLineEdit::textEdited, this, [this]() { m_userTyping = true; });
+            connect(edit, &QLineEdit::textChanged, this, [this]() {
+                if (m_settingValue || m_userTyping || m_externalCommitPending) {
+                    return;
+                }
+                m_externalCommitPending = true;
+                QTimer::singleShot(0, this, [this]() {
+                    m_externalCommitPending = false;
+                    if (!m_settingValue) {
+                        slotEditingFinished();
+                    }
+                });
+            });
+        }
     }
     if (!showSlider && !isInGroup) {
         l->addStretch(10);
@@ -831,6 +863,18 @@ void DragValue::setSpinSize(int width)
         m_intEdit->setMinimumWidth(width);
     } else {
         m_doubleEdit->setMinimumWidth(width);
+    }
+}
+
+void DragValue::containWidth(int width)
+{
+    setMinimumWidth(width);
+    setMaximumWidth(width);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    QAbstractSpinBox *box = m_intEdit != nullptr ? static_cast<QAbstractSpinBox *>(m_intEdit) : static_cast<QAbstractSpinBox *>(m_doubleEdit);
+    if (box != nullptr) {
+        box->setMinimumWidth(0);
+        box->setMaximumWidth(width);
     }
 }
 
@@ -964,24 +1008,34 @@ void DragValue::setValue(double value, bool final, bool createUndoEntry, bool up
     if (m_label) {
         m_label->setProgressValue((value - m_minimum) / (m_maximum - m_minimum) * m_label->maximum());
     }
+    m_settingValue = true;
     if (m_intEdit) {
         int val = qRound(value);
         m_intEdit->blockSignals(true);
         m_intEdit->setValue(val);
         m_intEdit->blockSignals(false);
+        m_settingValue = false;
+        m_commitEmitted = true;
         Q_EMIT customValueChanged(double(val), final, createUndoEntry);
     } else {
         m_doubleEdit->blockSignals(true);
         m_doubleEdit->setValue(value);
         m_doubleEdit->blockSignals(false);
+        m_settingValue = false;
+        m_commitEmitted = true;
         Q_EMIT customValueChanged(value, final, createUndoEntry);
     }
 }
 
 void DragValue::slotEditingFinished()
 {
+    m_userTyping = false;
+    m_commitEmitted = false;
     if (m_intEdit) {
+        const int before = m_intEdit->value();
+        m_intEdit->interpretText();
         int newValue = m_intEdit->value();
+        m_settingValue = true;
         m_intEdit->blockSignals(true);
         if (m_intEdit->singleStep() > 1) {
             int div = (newValue - m_minimum) / m_intEdit->singleStep();
@@ -990,18 +1044,25 @@ void DragValue::slotEditingFinished()
         }
         m_intEdit->clearFocus();
         m_intEdit->blockSignals(false);
-        if (!KdenliveSettings::dragvalue_directupdate()) {
-            Q_EMIT customValueChanged((double)newValue, true);
+        m_settingValue = false;
+        // interpretText already pushed one undo through valueChanged. A second emit makes the first Undo a no-op.
+        if (!m_commitEmitted && newValue != before) {
+            Q_EMIT customValueChanged((double)newValue, true, true);
         }
-    } else {
+    } else if (m_doubleEdit) {
+        const double before = m_doubleEdit->value();
+        m_doubleEdit->interpretText();
         double value = m_doubleEdit->value();
+        m_settingValue = true;
         m_doubleEdit->blockSignals(true);
         m_doubleEdit->clearFocus();
         m_doubleEdit->blockSignals(false);
-        if (!KdenliveSettings::dragvalue_directupdate()) {
-            Q_EMIT customValueChanged(value, true);
+        m_settingValue = false;
+        if (!m_commitEmitted && !qFuzzyCompare(value, before)) {
+            Q_EMIT customValueChanged(value, true, true);
         }
     }
+    m_commitEmitted = false;
 }
 
 void DragValue::slotShowContextMenu(const QPoint &pos)

@@ -1,0 +1,289 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8): No such file or directory
+[1/133] Automatic MOC for target kdenliveLib
+[2/132] Running AUTOMOC file extraction for target kdenliveLib
+[3/15] Building CXX object src/CMakeFiles/kdenliveLib.dir/transcript/mainwindow_story.cpp.o
+[4/15] Building CXX object src/CMakeFiles/kdenliveLib.dir/transcript/storytimelinebridge.cpp.o
+[5/15] Building CXX object src/CMakeFiles/kdenliveLib.dir/timeline2/model/snapmodel.cpp.o
+[6/15] Building CXX object src/CMakeFiles/kdenliveLib.dir/project/projectmanager.cpp.o
+[7/15] Building CXX object src/CMakeFiles/kdenliveLib.dir/timeline2/model/timelinefunctions.cpp.o
+[8/15] Building CXX object src/CMakeFiles/kdenliveLib.dir/timeline2/view/timelinecontroller.cpp.o
+[9/15] Building CXX object src/CMakeFiles/kdenliveLib.dir/timeline2/model/timelinemodel.cpp.o
+[10/15] Linking CXX static library lib/libkdenliveLib.a
+[11/15] Building CXX object tests/CMakeFiles/kdenliveTestSupport.dir/test_utils.cpp.o
+[12/15] Automatic MOC for target storyslicetest
+[13/14] Building CXX object tests/CMakeFiles/storyslicetest.dir/storyslicetest.cpp.o
+[14/14] Linking CXX executable bin/storyslicetest
+01:27:57.716  unknown:0 -- Checking path restored from KdenliveSettings::mltpath(): ""
+01:27:57.716  unknown:0 -- Checking path relative to kdenlive executable ( "/workspace/build-story/bin" ) ./../share/%LIBNAME%/profiles: "/workspace/build-story/share/mlt-7/profiles"
+01:27:57.716  unknown:0 -- MLT profile path has not been found yet
+01:27:57.716  unknown:0 -- Falling back to build-time MLT_DATADIR/profiles: "/usr/share/mlt-7/profiles"
+01:27:57.716  unknown:0 -- MLT_PREFIX envvar is not set, continue
+01:27:57.716  unknown:0 -- Checking path restored from KdenliveSettings::meltpath(): ""
+01:27:57.716  unknown:0 -- Checking path relative to profile location ( "/usr/share/mlt-7/profiles" ) ./../../../bin/:  "/usr/bin/melt-7"
+01:27:57.716  unknown:0 -- Found melt executable "/usr/bin/melt-7"
+01:27:57.730  unknown:0 -- Profile  "" not found. Returning default profile instead.
+01:27:57.730  unknown:0 -- Profile  "" not found. Returning default profile instead.
+01:27:57.841  unknown:0 -- Trying to convert empty KLocalizedString to QString.
+01:27:57.842  unknown:0 -- Trying to convert empty KLocalizedString to QString.
+01:27:57.844  unknown:0 -- Loading asset xml files from the following locations QList("/kdenlive/effect-templates", "/kdenlive/effects")
+01:27:57.844  unknown:0 -- ::: FOUND EFFECT TAG:  "panner"  ==  "audiobalance"
+01:27:58.405  unknown:0 -- ZZZZZZZZZZZZZZZZZZZZZZZ
+
+STARTING TASKMANAGER CLOSURE, ACTIVE THREADS:  0 
+EXCEPTIONS:  QList() 
+
+ZZZZZZZZZZZZZZZZZZZZZZZ
+01:27:58.405  unknown:0 -- Profile  "" not found. Returning default profile instead.
+01:27:58.413  unknown:0 -- Loading asset xml files from the following locations QList("/kdenlive/transitions")
+01:27:58.413  unknown:0 -- ==== DOCUMENT PLAYLIST NOT FOUND!!!!!
+01:27:58.413  unknown:0 -- ZZZZZZZZZZZZZZZZZZZZZZZ
+
+STARTING TASKMANAGER CLOSURE, ACTIVE THREADS:  0 
+EXCEPTIONS:  QList() 
+
+ZZZZZZZZZZZZZZZZZZZZZZZ
+01:27:58.415  unknown:0 -- :::: NOT FOUND DOCUMENT GUIDES !!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!
+01:27:58.415  unknown:0 -- HHHHHHHHHHHH
+INVALID BIN PLAYLIST...
+01:27:58.415  unknown:0 -- === OPENING FILE WITH TRACKS:  4
+01:27:58.415  unknown:0 -- :::: FOUND TRACTOR WITH TRACKS:  2 
+
+___________________________
+01:27:58.415  unknown:0 -- :::: FOUND TRACTOR WITH TRACKS:  2 
+
+___________________________
+01:27:58.415  unknown:0 -- :::: FOUND TRACTOR WITH TRACKS:  2 
+
+___________________________
+01:27:58.415  unknown:0 -- ===== QUERYING TRANSITION:  "mix"
+01:27:58.415  unknown:0 -- ===== QUERYING TRANSITION:  "qtblend"
+01:27:58.415  unknown:0 -- ===== QUERYING TRANSITION:  "qtblend"
+01:27:58.416  unknown:0 -- // WARNING EMPTY CLIP HASH: 
+01:27:58.416  unknown:0 -- 555555555555555555
+
+BUILDING SEQUENCE CLIP
+
+555555555555555555555555555
+01:27:58.416  unknown:0 -- ::::: TIMELINE  QUuid("{a1474cf9-8d9e-4505-ac28-d015940a168e}")  already inserted in project
+01:27:58.416  unknown:0 -- /////////// createClipFromFile "/tmp/kdenlive-RvDgoR/marked.mp4" "-1"
+01:27:58.416  unknown:0 -- /////////// final xml "<producer>\n <property name=\"resource\">/tmp/kdenlive-RvDgoR/marked.mp4</property>\n</producer>\n"
+01:27:58.417  unknown:0 -- /////////// createClipFromFile "/tmp/kdenlive-RvDgoR/marked.wav" "-1"
+01:27:58.417  unknown:0 -- /////////// final xml "<producer>\n <property name=\"resource\">/tmp/kdenlive-RvDgoR/marked.wav</property>\n</producer>\n"
+01:27:58.431  unknown:0 -- ################### ProjectClip::setproducer #################
+01:27:58.431  unknown:0 -- ################### ClipController::updateProducer
+01:27:58.431  unknown:0 -- ################### ClipController::addmasterproducer FOR:  "4"
+01:27:58.479  unknown:0 -- ################### ProjectClip::setproducer #################
+01:27:58.479  unknown:0 -- ################### ClipController::updateProducer
+01:27:58.479  unknown:0 -- ################### ClipController::addmasterproducer FOR:  "5"
+01:27:58.500  unknown:0 -- ------------
+FRAME HAS AUDIO:  true  /  false 
+------------------------
+01:27:58.501  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  -1
+01:27:58.501  unknown:0 -- REGISTRATION  4 ptr count 4
+01:27:58.505  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  0
+01:27:58.505  unknown:0 -- REGISTRATION  5 ptr count 4
+01:27:58.546  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  0
+01:27:58.547  unknown:0 -- REGISTRATION  6 ptr count 4
+01:27:58.547  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  0
+01:27:58.547  unknown:0 -- REGISTRATION  7 ptr count 4
+01:27:58.547  unknown:0 -- Subtitle constructor
+01:27:58.547  unknown:0 -- Tractor!
+01:27:58.547  unknown:0 -- Error : Json file should be an array
+01:27:58.547  unknown:0 -- MISSING SUBTITLE FILE, create tmp:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.547  unknown:0 -- Error : Json file should be an array
+01:27:58.547  unknown:0 -- Parsing started for:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.547  unknown:0 -- ass File
+01:27:58.547  unknown:0 --  correct ass file   "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.547  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.548  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.548  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  0
+01:27:58.548  unknown:0 -- REGISTRATION  9 ptr count 5
+01:27:58.549  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 0 - 35 ,  36
+01:27:58.549  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 36 - 119 ,  84
+01:27:58.549  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  0
+01:27:58.549  unknown:0 -- REGISTRATION  10 ptr count 6
+01:27:58.549  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 36 - 119 ,  84
+01:27:58.549  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  36 / 36 - 71 ,  36
+01:27:58.549  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  36 / 72 - 119 ,  48
+01:27:58.549  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  -1
+01:27:58.549  unknown:0 -- REGISTRATION  11 ptr count 7
+01:27:58.549  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 0 - 35 ,  36
+01:27:58.549  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 36 - 119 ,  84
+01:27:58.549  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  -1
+01:27:58.549  unknown:0 -- REGISTRATION  12 ptr count 7
+01:27:58.549  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 36 - 119 ,  84
+01:27:58.549  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  36 / 36 - 71 ,  36
+01:27:58.549  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  36 / 72 - 119 ,  48
+01:27:58.550  unknown:0 -- =============
+
+STARTING REAL GROUP MOVE....
+====================
+01:27:58.550  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.550  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  0
+01:27:58.550  unknown:0 -- REGISTRATION  14 ptr count 7
+01:27:58.550  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 0 - 35 ,  36
+01:27:58.550  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 0 - 7 ,  8
+01:27:58.550  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 8 - 35 ,  28
+01:27:58.550  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  0
+01:27:58.550  unknown:0 -- REGISTRATION  15 ptr count 7
+01:27:58.550  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 8 - 119 ,  112
+01:27:58.551  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  8 / 8 - 35 ,  28
+01:27:58.551  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  8 / 8 - 15 ,  8
+01:27:58.551  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  8 / 16 - 35 ,  20
+01:27:58.551  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  -1
+01:27:58.551  unknown:0 -- REGISTRATION  16 ptr count 7
+01:27:58.551  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 0 - 35 ,  36
+01:27:58.551  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 0 - 7 ,  8
+01:27:58.551  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 8 - 35 ,  28
+01:27:58.551  unknown:0 -- // GET TIMELINE PROD FOR STREAM:  -1
+01:27:58.551  unknown:0 -- REGISTRATION  17 ptr count 7
+01:27:58.551  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  0 / 8 - 119 ,  112
+01:27:58.551  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  8 / 8 - 35 ,  28
+01:27:58.551  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  8 / 8 - 15 ,  8
+01:27:58.551  unknown:0 -- ----------
+-----------
+// ADJUSTING EFFECT LENGTH, LOGUNDO  true ,  8 / 16 - 35 ,  20
+01:27:58.551  unknown:0 -- =============
+
+STARTING REAL GROUP MOVE....
+====================
+01:27:58.552  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.554  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.554  unknown:0 -- REGISTRATION  16 ptr count 8
+01:27:58.555  unknown:0 -- REGISTRATION  14 ptr count 8
+01:27:58.555  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.555  unknown:0 -- REGISTRATION  11 ptr count 8
+01:27:58.556  unknown:0 -- REGISTRATION  9 ptr count 8
+01:27:58.557  unknown:0 -- REGISTRATION  9 ptr count 8
+01:27:58.557  unknown:0 -- REGISTRATION  10 ptr count 8
+01:27:58.557  unknown:0 -- REGISTRATION  11 ptr count 8
+01:27:58.557  unknown:0 -- REGISTRATION  12 ptr count 8
+01:27:58.558  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.558  unknown:0 -- REGISTRATION  14 ptr count 8
+01:27:58.558  unknown:0 -- REGISTRATION  15 ptr count 8
+01:27:58.558  unknown:0 -- REGISTRATION  16 ptr count 8
+01:27:58.558  unknown:0 -- REGISTRATION  17 ptr count 8
+01:27:58.559  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.560  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.561  unknown:0 -- REGISTRATION  16 ptr count 8
+01:27:58.561  unknown:0 -- REGISTRATION  14 ptr count 8
+01:27:58.562  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.562  unknown:0 -- REGISTRATION  11 ptr count 8
+01:27:58.563  unknown:0 -- REGISTRATION  9 ptr count 8
+01:27:58.563  unknown:0 -- REGISTRATION  9 ptr count 8
+01:27:58.563  unknown:0 -- REGISTRATION  10 ptr count 8
+01:27:58.563  unknown:0 -- REGISTRATION  11 ptr count 8
+01:27:58.564  unknown:0 -- REGISTRATION  12 ptr count 8
+01:27:58.564  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.564  unknown:0 -- REGISTRATION  14 ptr count 8
+01:27:58.565  unknown:0 -- REGISTRATION  15 ptr count 8
+01:27:58.565  unknown:0 -- REGISTRATION  16 ptr count 8
+01:27:58.565  unknown:0 -- REGISTRATION  17 ptr count 8
+01:27:58.566  unknown:0 -- Saving subtitle filter:  "/tmp/-{ece1c15e-395d-46ea-a0d9-2b86f838137f}.ass"
+01:27:58.566  unknown:0 -- ::: READING STORAGE INFO =  0 , WITH URL:  QUrl("")
+01:27:58.614  unknown:0 -- ------------
+SAVED FILE AS:  "/tmp/kdenlive-RvDgoR/marked.kdenlive" 
+==============
+01:27:59.390  unknown:0 -- beep peaks QList(4800, 105600) expected 4805 105706 samples 163363
+01:27:59.390  unknown:0 -- === OPENING FILE WITH TRACKS:  4
+01:27:59.390  unknown:0 -- :::: FOUND TRACTOR WITH TRACKS:  2 
+
+___________________________
+01:27:59.390  unknown:0 -- Trying to map CLIP CONTROL UUID:  "{9cfbc539-1fd1-4628-830e-bc3fe1f515d3}" , ID:  
+01:27:59.390  unknown:0 -- REGISTRATION  21 ptr count 2
+01:27:59.390  unknown:0 -- REGISTRATION  22 ptr count 2
+01:27:59.391  unknown:0 -- REGISTRATION  23 ptr count 2
+01:27:59.391  unknown:0 -- :::: FOUND TRACTOR WITH TRACKS:  2 
+
+___________________________
+01:27:59.391  unknown:0 -- Trying to map CLIP CONTROL UUID:  "{e32e2e09-1323-46f3-94d3-86112e883bb6}" , ID:  
+01:27:59.391  unknown:0 -- REGISTRATION  25 ptr count 2
+01:27:59.391  unknown:0 -- REGISTRATION  26 ptr count 2
+01:27:59.391  unknown:0 -- REGISTRATION  27 ptr count 2
+01:27:59.391  unknown:0 -- Trying to map CLIP CONTROL UUID:  "{ccaf9392-704f-457d-b7f2-c0d25d0bcc83}" , ID:  
+01:27:59.391  unknown:0 -- REGISTRATION  28 ptr count 2
+01:27:59.391  unknown:0 -- :::: FOUND TRACTOR WITH TRACKS:  2 
+
+___________________________
+01:27:59.391  unknown:0 -- Trying to map CLIP CONTROL UUID:  "{d8897879-f861-4581-87c2-edcdca491c32}" , ID:  
+01:27:59.391  unknown:0 -- REGISTRATION  30 ptr count 2
+01:27:59.392  unknown:0 -- ===== QUERYING TRANSITION:  "mix"
+01:27:59.392  unknown:0 -- ===== QUERYING TRANSITION:  "qtblend"
+01:27:59.392  unknown:0 -- ===== QUERYING TRANSITION:  "qtblend"
+01:27:59.392  unknown:0 -- ::::: TIMELINE  QUuid("{a1474cf9-8d9e-4505-ac28-d015940a168e}")  already inserted in project
+01:27:59.392  unknown:0 -- ::::: TIMELINE INCONSISTENCY
+Filters: [StorySync]
+===============================================================================
+All tests passed (209 assertions in 1 test case)
+
+01:27:59.436  unknown:0 -- ZZZZZZZZZZZZZZZZZZZZZZZ
+
+STARTING TASKMANAGER CLOSURE, ACTIVE THREADS:  0 
+EXCEPTIONS:  QList() 
+
+ZZZZZZZZZZZZZZZZZZZZZZZ
+01:27:59.437  unknown:0 -- ZZZZZZZZZZZZZZZZZZZZZZZ
+
+STARTING TASKMANAGER CLOSURE, ACTIVE THREADS:  0 
+EXCEPTIONS:  QList() 
+
+ZZZZZZZZZZZZZZZZZZZZZZZ
+ZZZZZZZZZZZZZZZZZZZZZZZ
+
+STARTING TASKMANAGER CLOSURE, ACTIVE THREADS:  0 
+EXCEPTIONS:  QList() 
+
+ZZZZZZZZZZZZZZZZZZZZZZZ
+::::::==
+
+CLOSING TIMELINE MODEL
+
+::::::::
+SYNC:0

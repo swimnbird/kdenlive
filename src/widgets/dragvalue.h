@@ -24,6 +24,7 @@ public:
     int valueFromText(const QString &text) const override;
     explicit MySpinBox(QWidget *parent = nullptr);
     bool blockWheel{false};
+    QLineEdit *editor() const { return lineEdit(); }
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -53,6 +54,7 @@ public:
     double valueFromText(const QString &text) const override;
     explicit MyDoubleSpinBox(QWidget *parent = nullptr);
     bool blockWheel{false};
+    QLineEdit *editor() const { return lineEdit(); }
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -153,6 +155,8 @@ public:
     int spinSize();
     /** @brief Sets the minimum size for QSpinBox, used to set all spinboxes to the same width. */
     void setSpinSize(int width);
+    /** @brief Keep the spin inside this width so it cannot paint over the next control. */
+    void containWidth(int width);
     /** @brief Returns true if widget is currently being edited */
     bool hasEditFocus() const;
     /** @brief Returns the parameter's label widget */
@@ -224,4 +228,8 @@ private:
     KSelectAction *m_scale;
     QAction *m_directUpdate;
     CustomLabel *m_label{nullptr};
+    bool m_settingValue{false};
+    bool m_userTyping{false};
+    bool m_commitEmitted{false};
+    bool m_externalCommitPending{false};
 };

@@ -53,8 +53,10 @@ void RotatedRectHelper::refreshParams(int pos)
         } else if (name == QLatin1String("rotate_anchor")) {
             const QString anchorData = keyframes->getInterpolatedValue(pos, ix).toString();
             qDebug() << "::: GOT ANCHOR DATA: " << anchorData;
-            QStringList anchors = anchorData.split(QLatin1Char(' '));
-            rotation_anchor = QPointF(anchors.at(0).toDouble(), anchors.at(1).toDouble());
+            const QStringList anchors = anchorData.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+            if (anchors.size() >= 2) {
+                rotation_anchor = QPointF(anchors.at(0).toDouble(), anchors.at(1).toDouble());
+            }
         }
     }
 

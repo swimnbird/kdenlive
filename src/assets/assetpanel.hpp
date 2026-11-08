@@ -27,6 +27,7 @@ class TransitionStackView;
 class MaskManager;
 class MixStackView;
 class QLabel;
+class QToolBar;
 
 /** @class AssetPanel
     @brief This class is the widget that provides interaction with the asset currently selected.
@@ -60,6 +61,8 @@ public:
     bool hasRunningTask() const;
     /** @brief Start mask creation mode */
     bool launchObjectMask();
+    /** @brief Put the asset name on its own line and secondary actions in a menu. */
+    void applyStoryHeader(bool story);
 
 public Q_SLOTS:
     /** @brief Clear panel if displaying itemId */
@@ -98,6 +101,11 @@ private:
     QScrollArea *m_sc;
     KMessageWidget *m_infoMessage;
     QTimer m_dragScrollTimer;
+    QToolBar *m_toolbar{nullptr};
+    QLabel *m_storyHeading{nullptr};
+    QAction *m_storyMoreAction{nullptr};
+    bool m_storyHeader{false};
+    int m_stackTicket{0};
 
 private Q_SLOTS:
     void processSplitEffect(bool enable);

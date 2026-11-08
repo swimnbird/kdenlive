@@ -35,6 +35,13 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "kdenlivesettings.h"
 #include "macros.hpp"
 #include "mainwindow.h"
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QPainterPath>
+#include <QLabel>
+#include <QSortFilterProxyModel>
+#include <QSplitter>
+#include <QVBoxLayout>
 #include "mediabrowser.h"
 #include "mltcontroller/clipcontroller.h"
 #include "mltcontroller/clippropertiescontroller.h"
@@ -103,6 +110,24 @@ static QImage m_effectIcon;
 static QImage m_subClipIcon;
 static QSize m_iconSize;
 static QIcon m_folderIcon;
+
+class StoryFolderFilter : public QSortFilterProxyModel
+{
+public:
+    explicit StoryFolderFilter(QObject *parent = nullptr)
+        : QSortFilterProxyModel(parent)
+    {
+        setRecursiveFilteringEnabled(true);
+        setDynamicSortFilter(true);
+    }
+
+protected:
+    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override
+    {
+        const QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
+        return sourceModel()->data(index, AbstractProjectItem::ItemTypeRole).toInt() == AbstractProjectItem::FolderItem;
+    }
+};
 static QIcon m_sequenceFolderIcon;
 
 /**
@@ -704,10 +729,29 @@ public:
     {
         if (!index.data().isNull()) {
             painter->setRenderHint(QPainter::SmoothPixmapTransform, true);
+            painter->setRenderHint(QPainter::Antialiasing, true);
             QStyleOptionViewItem opt(option);
             initStyleOption(&opt, index);
             QStyle *style = opt.widget ? opt.widget->style() : QApplication::style();
-            style->drawPrimitive(QStyle::PE_PanelItemViewItem, &opt, painter, opt.widget);
+            const bool storyCard = KdenliveSettings::storyAppearance() == QLatin1String("story");
+            if (storyCard) {
+                const QRect card = opt.rect.adjusted(3, 3, -3, -3);
+                painter->save();
+                painter->setPen(Qt::NoPen);
+                if (opt.state & QStyle::State_Selected) {
+                    painter->setBrush(QColor(58, 78, 98));
+                    painter->drawRoundedRect(card, 8, 8);
+                    painter->setPen(QPen(QColor(122, 164, 200), 2));
+                    painter->setBrush(Qt::NoBrush);
+                    painter->drawRoundedRect(card.adjusted(1, 1, -1, -1), 7, 7);
+                } else if (opt.state & QStyle::State_MouseOver) {
+                    painter->setBrush(QColor(44, 44, 48));
+                    painter->drawRoundedRect(card, 8, 8);
+                }
+                painter->restore();
+            } else {
+                style->drawPrimitive(QStyle::PE_PanelItemViewItem, &opt, painter, opt.widget);
+            }
             QRect r = style->subElementRect(QStyle::SE_ItemViewItemDecoration, &opt, opt.widget);
             int type = index.data(AbstractProjectItem::ItemTypeRole).toInt();
             bool isFolder = type == AbstractProjectItem::FolderItem;
@@ -720,8 +764,15 @@ public:
                                                        : m_folderIcon.pixmap(m_folderIcon.actualSize(r.size())))
                                    : opt.icon.pixmap(opt.icon.actualSize(r.size()));
             if (!pix.isNull()) {
-                // Draw icon
-                painter->drawPixmap(r.adjusted(2, 1, -2, 1), pix, QRect(0, 0, pix.width(), pix.height()));
+                const QRect iconRect = r.adjusted(2, 1, -2, 1);
+                painter->save();
+                if (KdenliveSettings::storyAppearance() == QLatin1String("story")) {
+                    QPainterPath clip;
+                    clip.addRoundedRect(iconRect, 6, 6);
+                    painter->setClipPath(clip);
+                }
+                painter->drawPixmap(iconRect, pix, QRect(0, 0, pix.width(), pix.height()));
+                painter->restore();
             }
             m_thumbRect = r;
             QRect textRect = style->subElementRect(QStyle::SE_ItemViewItemText, &opt, opt.widget);
@@ -2778,6 +2829,68 @@ void Bin::slotDuplicateClip()
     }
 }
 
+bool Bin::duplicateSequenceByBinId(const QString &binId, bool openCopy)
+{
+    const std::shared_ptr<ProjectClip> currentItem = m_itemModel->getClipByBinID(binId);
+    if (!currentItem || currentItem->clipType() != ClipType::Timeline) {
+        return false;
+    }
+    const QUuid uuid = currentItem->getSequenceUuid();
+    if (m_doc->getTimelinesUuids().contains(uuid)) {
+        m_doc->storeGroups(uuid);
+        pCore->projectManager()->syncTimeline(uuid, true);
+    }
+
+    QTemporaryFile src(QDir::temp().absoluteFilePath(QStringLiteral("XXXXXX.mlt")));
+    src.setAutoRemove(false);
+    if (!src.open()) {
+        pCore->displayMessage(i18n("Could not create temporary file in %1", QDir::temp().absolutePath()), MessageType::ErrorMessage, 500);
+        return false;
+    }
+    currentItem->cloneProducerToFile(src.fileName());
+    QDomDocument doc;
+    if (!Xml::docContentFromFile(doc, src.fileName(), false)) {
+        return false;
+    }
+    QReadLocker lock(&pCore->xmlMutex);
+    const QByteArray result = doc.toString().toUtf8();
+    std::shared_ptr<Mlt::Producer> xmlProd(new Mlt::Producer(pCore->getProjectProfile(), "xml-string", result.constData()));
+    lock.unlock();
+
+    QList<std::shared_ptr<AbstractProjectItem>> siblings;
+    if (auto parentItem = currentItem->parent()) {
+        for (int i = 0; i < parentItem->childCount(); ++i) {
+            if (auto childItem = std::dynamic_pointer_cast<AbstractProjectItem>(parentItem->child(i))) {
+                siblings.append(childItem);
+            }
+        }
+    }
+    const QString parentFolderId = currentItem->parent() ? currentItem->parent()->clipId() : QString();
+    const QString newName = generateDuplicateName(currentItem->name(), siblings);
+    xmlProd->set("kdenlive:clipname", newName.toUtf8().constData());
+    xmlProd->set("kdenlive:sequenceproperties.documentuuid", m_doc->uuid().toString().toUtf8().constData());
+    Mlt::Properties props(xmlProd->get_properties());
+    props.clear("kdenlive:control_uuid");
+
+    Fun undo = []() { return true; };
+    Fun redo = []() { return true; };
+    QString newId;
+    const bool added = m_itemModel->requestAddBinClip(newId, xmlProd, parentFolderId, undo, redo, [this, openCopy](const QString &id) {
+        if (!openCopy) {
+            return;
+        }
+        auto newClip = m_itemModel->getClipByBinID(id);
+        if (newClip && newClip->clipType() == ClipType::Timeline) {
+            pCore->projectManager()->openTimeline(id, -1, newClip->getSequenceUuid(), -1, true);
+        }
+    });
+    if (!added) {
+        return false;
+    }
+    pCore->pushUndo(undo, redo, i18n("Duplicate sequence"));
+    return true;
+}
+
 void Bin::cleanDocument()
 {
     blockSignals(true);
@@ -2841,6 +2954,9 @@ const QString Bin::setDocument(KdenliveDoc *project, const QString &id)
     // connect(m_itemModel, SIGNAL(updateCurrentItem()), this, SLOT(autoSelect()));
     qDebug() << "++++++++++ ININT VIEW WITH TYPE: " << m_listType;
     slotInitView(nullptr);
+    if (m_storyBrowser) {
+        applyStoryBrowser(true);
+    }
     bool binEffectsDisabled = getDocumentProperty(QStringLiteral("disablebineffects")).toInt() == 1;
     const QString sorting = getDocumentProperty(QStringLiteral("binsort"));
     if (!sorting.isEmpty()) {
@@ -3428,8 +3544,11 @@ void Bin::slotInitView(QAction *action)
         }
         if (m_listType == BinTreeView) {
             // save current treeview state (column width)
-            auto *view = static_cast<QTreeView *>(m_itemView);
-            m_headerInfo = view->header()->saveState();
+            // Story can switch to the icon browser before the tree header exists.
+            auto *view = qobject_cast<QTreeView *>(m_itemView);
+            if (view != nullptr && view->header() != nullptr) {
+                m_headerInfo = view->header()->saveState();
+            }
             m_showDate->setEnabled(true);
             m_showDesc->setEnabled(true);
             m_showRating->setEnabled(true);
@@ -3510,7 +3629,12 @@ void Bin::slotInitView(QAction *action)
     m_itemView->setModel(m_proxyModel.get());
     m_itemView->setSelectionModel(m_proxyModel->selectionModel());
     m_proxyModel->setDynamicSortFilter(true);
-    m_layout->insertWidget(2, m_itemView);
+    if (m_storyBrowser && m_storyBrowserLayout != nullptr) {
+        m_storyBrowserLayout->insertWidget(0, m_itemView);
+        bindStoryFolders();
+    } else {
+        m_layout->insertWidget(2, m_itemView);
+    }
     // Reset drag type to normal
     m_itemModel->setDragType(PlaylistState::Disabled);
 
@@ -3611,8 +3735,273 @@ void Bin::slotInitView(QAction *action)
     m_itemView->setEditTriggers(QAbstractItemView::NoEditTriggers); // DoubleClicked);
     m_itemView->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_itemView->setDragDropMode(QAbstractItemView::DragDrop);
-    m_itemView->setAlternatingRowColors(true);
+    m_itemView->setAlternatingRowColors(m_listType != BinIconView);
     m_itemView->setFocus();
+}
+
+void Bin::bindStoryFolders()
+{
+    if (m_storyFolders == nullptr || m_proxyModel == nullptr) {
+        return;
+    }
+    if (!m_storyFolderProxy) {
+        m_storyFolderProxy = std::make_unique<StoryFolderFilter>(this);
+    }
+    m_storyFolderProxy->setSourceModel(m_proxyModel.get());
+    m_storyFolders->setModel(m_storyFolderProxy.get());
+    for (int column = 1; column < m_storyFolderProxy->columnCount(); ++column) {
+        m_storyFolders->hideColumn(column);
+    }
+    if (QHeaderView *header = m_storyFolders->header()) {
+        header->setStretchLastSection(true);
+        if (header->count() > 0) {
+            header->setSectionResizeMode(0, QHeaderView::Stretch);
+        }
+    }
+    m_storyFolders->expandAll();
+    connect(m_proxyModel.get(), &QAbstractItemModel::rowsInserted, m_storyFolders, &QTreeView::expandAll, Qt::UniqueConnection);
+    connect(m_proxyModel.get(), &QAbstractItemModel::modelReset, m_storyFolders, &QTreeView::expandAll, Qt::UniqueConnection);
+    connect(m_proxyModel->selectionModel(), &QItemSelectionModel::selectionChanged, this, &Bin::updateStorySourceLine, Qt::UniqueConnection);
+    updateStorySourceLine();
+}
+
+void Bin::syncStoryFolderSelection()
+{
+    if (!m_storyBrowser || m_storyFolders == nullptr || m_itemView == nullptr || m_storyFolderProxy == nullptr) {
+        return;
+    }
+    const QModelIndex root = m_itemView->rootIndex();
+    if (!root.isValid()) {
+        if (m_storyAllMedia != nullptr) {
+            m_storyAllMedia->setChecked(true);
+        }
+        m_storyFolders->clearSelection();
+        if (m_upAction != nullptr) {
+            m_upAction->setEnabled(false);
+        }
+        return;
+    }
+    if (m_storyAllMedia != nullptr) {
+        m_storyAllMedia->setChecked(false);
+    }
+    if (m_upAction != nullptr) {
+        m_upAction->setEnabled(true);
+    }
+    const QModelIndex folderIndex = m_storyFolderProxy->mapFromSource(root);
+    if (folderIndex.isValid()) {
+        m_storyFolders->setCurrentIndex(folderIndex);
+        m_storyFolders->scrollTo(folderIndex);
+    }
+}
+
+void Bin::updateStorySourceLine()
+{
+    if (m_storySourceLabel == nullptr) {
+        return;
+    }
+    const QList<std::shared_ptr<ProjectClip>> clips = selectedSourceClips();
+    if (clips.isEmpty() || clips.first() == nullptr) {
+        m_storySourceLabel->setText(i18n("No source clip"));
+        return;
+    }
+    m_storySourceLabel->setText(i18n("Source: %1", clips.first()->name()));
+}
+
+void Bin::applyStoryBrowser(bool enabled)
+{
+    if (!m_isMainBin || m_itemModel == nullptr) {
+        return;
+    }
+    m_storyBrowser = enabled;
+    if (!enabled) {
+        if (m_storySplit != nullptr) {
+            m_storySplit->hide();
+            if (m_itemView != nullptr && m_storyBrowserPane != nullptr && m_itemView->parentWidget() == m_storyBrowserPane) {
+                m_layout->insertWidget(2, m_itemView);
+            }
+        }
+        if (m_slider != nullptr) {
+            slotSetIconSize(m_slider->value());
+        }
+        return;
+    }
+    QAction *iconView = pCore->window()->actionCollection()->action(QStringLiteral("bin_view_mode_icon"));
+    if (iconView != nullptr && m_listType != BinIconView) {
+        slotInitView(iconView);
+    }
+    if (m_storySplit == nullptr) {
+        m_storySplit = new QSplitter(Qt::Horizontal, this);
+        m_storySplit->setObjectName(QStringLiteral("storyLibrarySplit"));
+        m_storySplit->setAccessibleName(i18n("Library and browser"));
+        m_storySplit->setChildrenCollapsible(false);
+        m_storySplit->setHandleWidth(6);
+
+        m_storyFolderPane = new QWidget(m_storySplit);
+        m_storyFolderPane->setObjectName(QStringLiteral("storyLibraryColumn"));
+        m_storyFolderPane->setAccessibleName(i18n("Library"));
+        m_storyFolderPane->setMinimumWidth(168);
+        m_storyFolderPane->setMaximumWidth(210);
+        m_storyFolderPane->setAutoFillBackground(true);
+        QPalette libraryPalette = m_storyFolderPane->palette();
+        libraryPalette.setColor(QPalette::Window, libraryPalette.color(QPalette::AlternateBase));
+        m_storyFolderPane->setPalette(libraryPalette);
+        auto *libraryLayout = new QVBoxLayout(m_storyFolderPane);
+        libraryLayout->setContentsMargins(6, 6, 4, 6);
+        libraryLayout->setSpacing(4);
+        auto *libraryTitle = new QLabel(i18n("Library"), m_storyFolderPane);
+        libraryTitle->setObjectName(QStringLiteral("storyLibraryTitle"));
+        libraryTitle->setAccessibleName(i18n("Library"));
+        QFont titleFont = libraryTitle->font();
+        titleFont.setBold(true);
+        libraryTitle->setFont(titleFont);
+        libraryLayout->addWidget(libraryTitle);
+
+        m_storyAllMedia = new QToolButton(m_storyFolderPane);
+        m_storyAllMedia->setObjectName(QStringLiteral("storyAllMedia"));
+        m_storyAllMedia->setText(i18n("All Media"));
+        m_storyAllMedia->setAccessibleName(i18n("All Media"));
+        m_storyAllMedia->setToolTip(i18n("Show every clip in the thumbnail browser."));
+        m_storyAllMedia->setIcon(QIcon::fromTheme(QStringLiteral("view-list-icons")));
+        m_storyAllMedia->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        m_storyAllMedia->setCheckable(true);
+        m_storyAllMedia->setChecked(true);
+        m_storyAllMedia->setAutoRaise(true);
+        m_storyAllMedia->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        libraryLayout->addWidget(m_storyAllMedia);
+
+        m_storyFolders = new QTreeView(m_storyFolderPane);
+        m_storyFolders->setObjectName(QStringLiteral("storyFolderTree"));
+        m_storyFolders->setAccessibleName(i18n("Folders"));
+        m_storyFolders->setToolTip(i18n("Folders. Choose one to show its clips as thumbnails."));
+        m_storyFolders->setHeaderHidden(true);
+        m_storyFolders->setIconSize(QSize(16, 16));
+        m_storyFolders->setIndentation(14);
+        m_storyFolders->setUniformRowHeights(true);
+        m_storyFolders->setRootIsDecorated(true);
+        m_storyFolders->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        m_storyFolders->setTextElideMode(Qt::ElideRight);
+        m_storyFolders->setFrameShape(QFrame::NoFrame);
+        m_storyFolders->setSelectionMode(QAbstractItemView::SingleSelection);
+        libraryLayout->addWidget(m_storyFolders, 1);
+
+        connect(m_storyAllMedia, &QToolButton::clicked, this, [this]() {
+            if (m_itemView == nullptr) {
+                return;
+            }
+            m_storyAllMedia->setChecked(true);
+            m_itemView->setRootIndex(QModelIndex());
+            if (m_storyFolders != nullptr) {
+                m_storyFolders->clearSelection();
+            }
+            if (m_upAction != nullptr) {
+                m_upAction->setEnabled(false);
+            }
+        });
+        connect(m_storyFolders, &QTreeView::clicked, this, [this](const QModelIndex &folderIndex) {
+            if (!folderIndex.isValid() || m_itemView == nullptr || m_storyFolderProxy == nullptr || m_listType != BinIconView) {
+                return;
+            }
+            const QModelIndex proxyIndex = m_storyFolderProxy->mapToSource(folderIndex);
+            if (!proxyIndex.isValid()) {
+                return;
+            }
+            m_itemView->setRootIndex(proxyIndex);
+            if (m_storyAllMedia != nullptr) {
+                m_storyAllMedia->setChecked(false);
+            }
+            if (m_upAction != nullptr) {
+                m_upAction->setEnabled(true);
+            }
+        });
+
+        m_storyBrowserPane = new QWidget(m_storySplit);
+        m_storyBrowserPane->setObjectName(QStringLiteral("storyThumbnailBrowser"));
+        m_storyBrowserPane->setAccessibleName(i18n("Thumbnail browser"));
+        m_storyBrowserLayout = new QVBoxLayout(m_storyBrowserPane);
+        m_storyBrowserLayout->setContentsMargins(0, 0, 0, 0);
+        m_storyBrowserLayout->setSpacing(0);
+
+        auto *sourceBar = new QWidget(m_storyBrowserPane);
+        sourceBar->setObjectName(QStringLiteral("storySourceBar"));
+        sourceBar->setAccessibleName(i18n("Source preview"));
+        auto *sourceLayout = new QHBoxLayout(sourceBar);
+        sourceLayout->setContentsMargins(4, 2, 4, 2);
+        sourceLayout->setSpacing(4);
+        m_storySourceLabel = new QLabel(i18n("No source clip"), sourceBar);
+        m_storySourceLabel->setAccessibleName(i18n("Source preview"));
+        m_storySourceLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        sourceLayout->addWidget(m_storySourceLabel);
+        auto *playSource = new QToolButton(sourceBar);
+        playSource->setObjectName(QStringLiteral("storyPlaySource"));
+        playSource->setAccessibleName(i18n("Play source"));
+        playSource->setToolTip(i18n("Play the selected clip in the Clip Monitor."));
+        playSource->setIcon(QIcon::fromTheme(QStringLiteral("media-playback-start")));
+        playSource->setAutoRaise(true);
+        sourceLayout->addWidget(playSource);
+        auto *pauseSource = new QToolButton(sourceBar);
+        pauseSource->setObjectName(QStringLiteral("storyPauseSource"));
+        pauseSource->setAccessibleName(i18n("Pause source"));
+        pauseSource->setToolTip(i18n("Pause the Clip Monitor."));
+        pauseSource->setIcon(QIcon::fromTheme(QStringLiteral("media-playback-pause")));
+        pauseSource->setAutoRaise(true);
+        sourceLayout->addWidget(pauseSource);
+        m_storyZoom = new QSlider(Qt::Horizontal, sourceBar);
+        m_storyZoom->setObjectName(QStringLiteral("storyThumbnailSize"));
+        m_storyZoom->setAccessibleName(i18n("Thumbnail size"));
+        m_storyZoom->setToolTip(i18n("Thumbnail size"));
+        m_storyZoom->setRange(0, 10);
+        m_storyZoom->setMinimumWidth(72);
+        m_storyZoom->setMaximumWidth(140);
+        if (m_slider != nullptr) {
+            m_storyZoom->setValue(m_slider->value());
+        }
+        sourceLayout->addWidget(m_storyZoom);
+        m_storyBrowserLayout->addWidget(sourceBar);
+
+        connect(playSource, &QToolButton::clicked, this, [this]() {
+            std::shared_ptr<ProjectClip> clip = getFirstSelectedClip();
+            if (clip) {
+                openProducer(clip);
+            }
+            if (Monitor *monitor = pCore->getMonitor(Kdenlive::ClipMonitor)) {
+                monitor->slotPlay();
+            }
+        });
+        connect(pauseSource, &QToolButton::clicked, this, []() {
+            if (Monitor *monitor = pCore->getMonitor(Kdenlive::ClipMonitor)) {
+                monitor->pause();
+            }
+        });
+        if (m_slider != nullptr && m_storyZoom != nullptr) {
+            connect(m_storyZoom, &QSlider::valueChanged, this, [this](int value) {
+                if (m_slider->value() != value) {
+                    m_slider->setValue(value);
+                }
+            });
+            connect(m_slider, &QSlider::valueChanged, this, [this](int value) {
+                if (m_storyZoom != nullptr && m_storyZoom->value() != value) {
+                    m_storyZoom->setValue(value);
+                }
+            });
+        }
+        m_layout->insertWidget(2, m_storySplit);
+    }
+    if (m_itemView != nullptr && m_storyBrowserLayout != nullptr && m_storyBrowserLayout->indexOf(m_itemView) < 0) {
+        m_storyBrowserLayout->insertWidget(0, m_itemView);
+    }
+    bindStoryFolders();
+    m_storySplit->setCollapsible(0, false);
+    m_storySplit->setStretchFactor(0, 0);
+    m_storySplit->setStretchFactor(1, 1);
+    m_storySplit->setSizes({180, 480});
+    m_storySplit->show();
+    qInfo().noquote() << "story library column width" << (m_storyFolderPane != nullptr ? m_storyFolderPane->width() : 0)
+                      << "minimum" << (m_storyFolderPane != nullptr ? m_storyFolderPane->minimumWidth() : 0);
+    if (m_slider != nullptr && m_slider->value() < 7) {
+        m_slider->setValue(7);
+    } else if (m_slider != nullptr) {
+        slotSetIconSize(m_slider->value());
+    }
 }
 
 void Bin::adjustHeaderSize()
@@ -3642,6 +4031,10 @@ void Bin::slotSetIconSize(int size)
     if (size == 0) {
         int iconSize = style()->pixelMetric(QStyle::PM_SmallIconSize);
         m_iconSize = QSize(iconSize, iconSize);
+    } else if (m_storyBrowser && m_listType == BinIconView) {
+        // The shared bin zoom slider. Story thumbnails stay large enough to read at the default step.
+        const double scale = 1.5 + (size / 10.0) * 2.0;
+        m_iconSize = m_baseIconSize * scale;
     } else {
         m_iconSize = m_baseIconSize * ((m_listType == BinIconView ? qMax(1, size) : size) / 4.0);
     }
@@ -6103,6 +6496,7 @@ void Bin::slotBack()
         m_upAction->setEnabled(false);
         parentWidget()->setWindowTitle(i18nc("@title:window", "Project Bin"));
     }
+    syncStoryFolderSelection();
 }
 
 void Bin::checkProjectAudioTracks(QString clipId, int minimumTracksCount)

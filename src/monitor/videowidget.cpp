@@ -1080,6 +1080,12 @@ void VideoWidget::resetConsumer(bool fullReset)
 void VideoWidget::on_frame_show(mlt_consumer, VideoWidget *widget, mlt_event_data data)
 {
     auto frame = Mlt::EventData(data).to_frame();
+    static int shown = 0;
+    if (shown < 4) {
+        qInfo().noquote() << "monitor frame-show valid" << frame.is_valid() << "rendered" << (frame.is_valid() ? frame.get_int("rendered") : 0)
+                          << "position" << (frame.is_valid() ? frame.get_int("position") : -1);
+        shown++;
+    }
     if (frame.is_valid() && frame.get_int("rendered")) {
         int timeout = (widget->consumer()->get_int("real_time") > 0) ? 0 : 1000;
         if ((widget->m_frameRenderer != nullptr) && widget->m_frameRenderer->semaphore()->tryAcquire(1, timeout)) {
@@ -1326,7 +1332,10 @@ void VideoWidget::startConsumer()
     if (m_consumer == nullptr) {
         return;
     }
+    qInfo().noquote() << "monitor consumer" << (m_consumer ? m_consumer->get("mlt_service") : "none") << "start-result-pending"
+                      << "glsl" << (m_glslManager ? m_glslManager->get_int("glsl_supported") : -1);
     if (!restartConsumer()) {
+        qWarning().noquote() << "monitor consumer failed to start";
         // ARGH CONSUMER BROKEN!!!!
         KMessageBox::error(
             qApp->activeWindow(),

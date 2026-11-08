@@ -584,10 +584,7 @@ void MainWindow::init()
     auto *previewButtonAction = qobject_cast<QWidgetAction *>(actionCollection()->action(QStringLiteral("timeline_preview_button")));
     previewButtonAction->setDefaultWidget(timelinePreview);
 
-    // Since not all widgets are added yet, don't use the Save flag now
-    setupGUI(KXmlGuiWindow::ToolBar | KXmlGuiWindow::StatusBar | KXmlGuiWindow::Create);
-
-    // Remove secondary cut shortcut conflicting with extract action
+    // Remove the secondary cut shortcut before the GUI checks for ambiguous keys.
     QAction *officialCut = actionCollection()->action(KStandardAction::name(KStandardAction::Cut));
     QList<QKeySequence> cutShortcuts = officialCut->shortcuts();
     if (cutShortcuts.size() > 1) {
@@ -596,6 +593,9 @@ void MainWindow::init()
             officialCut->setShortcuts(cutShortcuts);
         }
     }
+
+    // Since not all widgets are added yet, don't use the Save flag now
+    setupGUI(KXmlGuiWindow::ToolBar | KXmlGuiWindow::StatusBar | KXmlGuiWindow::Create);
     // Redirect help entry to our own function
     // First delete the default help action
     QAction *officialHelp = actionCollection()->action(KStandardAction::name(KStandardAction::HelpContents));

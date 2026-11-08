@@ -7,11 +7,15 @@
 #include "core.h"
 #include "doublewidget.h"
 #include "dragvalue.h"
+#include "kdenlivesettings.h"
 #include "monitor/monitor.h"
 
 #include <KLocalizedString>
+#include <QFontMetrics>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QLabel>
+#include <QToolButton>
 #include <QPoint>
 #include <QString>
 #include <QStyle>
@@ -76,8 +80,12 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     QLabel *label = m_spinY->createLabel();
     int posLabel = label->sizeHint().width();
     maxLabelWidth = posLabel;
+    const bool storyGaps = KdenliveSettings::storyAppearance() == QLatin1String("story");
+    if (storyGaps) {
+        poslayout->addSpacing(4);
+    }
     poslayout->addWidget(label);
-    poslayout->addSpacing(layout->horizontalSpacing() / 3);
+    poslayout->addSpacing(storyGaps ? 4 : layout->horizontalSpacing() / 3);
     poslayout->addWidget(m_spinY);
     poslayout->addStretch(10);
     m_allWidgets << label;
@@ -105,14 +113,45 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     connect(m_spinHeight, &DragValue::customValueChanged, this, &GeometryWidget::slotAdjustRectHeight);
     m_spinHeight->setObjectName("spinH");
     QHBoxLayout *sizelayout = new QHBoxLayout;
+    sizelayout->setContentsMargins(0, 0, 0, 0);
+    poslayout->setContentsMargins(0, 0, 0, 0);
     sizelayout->addWidget(m_spinWidth);
-    sizelayout->addWidget(ratioButton);
     label = m_spinHeight->createLabel();
-    int sizeLabel = label->sizeHint().width() + ratioButton->sizeHint().width();
-    maxLabelWidth = qMax(maxLabelWidth, sizeLabel);
-    sizelayout->addWidget(label);
-    sizelayout->addSpacing(layout->horizontalSpacing() / 3);
-    sizelayout->addWidget(m_spinHeight);
+    QLabel *heightLabel = label;
+    QLabel *yLabel = nullptr;
+    for (QWidget *widget : std::as_const(m_allWidgets)) {
+        if (auto *candidate = qobject_cast<QLabel *>(widget)) {
+            if (candidate->text() == i18nc("y axis position", "Y")) {
+                yLabel = candidate;
+            }
+        }
+    }
+    const bool storyColumns = KdenliveSettings::storyAppearance() == QLatin1String("story");
+    int sizeLabel = 0;
+    if (storyColumns) {
+        const int sideWidth = qMax(yLabel == nullptr ? 0 : yLabel->sizeHint().width(), heightLabel->sizeHint().width());
+        if (yLabel != nullptr) {
+            yLabel->setFixedWidth(sideWidth);
+            yLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        }
+        heightLabel->setFixedWidth(sideWidth);
+        heightLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        // The aspect lock lives with the align buttons. Keeping it on this row
+        // pushes H back into the width field when the inspector is narrow.
+        sizelayout->addSpacing(4);
+        sizelayout->addWidget(heightLabel);
+        sizelayout->addSpacing(4);
+        sizelayout->addWidget(m_spinHeight);
+        sizeLabel = sideWidth;
+        maxLabelWidth = qMax(maxLabelWidth, sizeLabel);
+    } else {
+        sizelayout->addWidget(ratioButton);
+        sizeLabel = label->sizeHint().width() + ratioButton->sizeHint().width();
+        maxLabelWidth = qMax(maxLabelWidth, sizeLabel);
+        sizelayout->addWidget(label);
+        sizelayout->addSpacing(layout->horizontalSpacing() / 3);
+        sizelayout->addWidget(m_spinHeight);
+    }
     sizelayout->addStretch(10);
     m_allWidgets << m_spinHeight;
     m_allWidgets << label;
@@ -141,30 +180,39 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     QAction *alignbottom = new QAction(QIcon::fromTheme(QStringLiteral("align-vertical-bottom")), i18n("Align bottom"), parent);
     connect(alignbottom, &QAction::triggered, this, &GeometryWidget::slotMoveBottom);
 
-    QToolBar *tbAlign = new QToolBar(parent);
     int size = parent->style()->pixelMetric(QStyle::PM_SmallIconSize);
-    tbAlign->setIconSize(QSize(size, size));
-    tbAlign->setStyleSheet(QStringLiteral("QToolBar { padding: 0; } QToolBar QToolButton { padding: 0; margin: 0; }"));
-    tbAlign->setFixedHeight(m_spinX->height());
-    tbAlign->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    tbAlign->addAction(alignleft);
-    tbAlign->addAction(alignhcenter);
-    tbAlign->addAction(alignright);
-    tbAlign->addAction(aligntop);
-    tbAlign->addAction(alignvcenter);
-    tbAlign->addAction(alignbottom);
-    m_allWidgets << tbAlign;
-
-    /*QToolBar *tbScale = new QToolBar(this);
-    tbScale->setIconSize(QSize(size, size));
-    tbScale->setStyleSheet(QStringLiteral("QToolBar { padding: 0; } QToolBar QToolButton { padding: 0; margin: 0; }"));
-    tbScale->setFixedHeight(m_spinX->height());
-    tbScale->setToolButtonStyle(Qt::ToolButtonIconOnly);*/
-    tbAlign->addAction(m_originalSize);
-    tbAlign->addAction(adjustSize);
-    tbAlign->addAction(fitToWidth);
-    tbAlign->addAction(fitToHeight);
-    tbAlign->setMinimumWidth(m_spinX->height());
+    const QList<QAction *> alignActions = {alignleft, alignhcenter, alignright, aligntop, alignvcenter, alignbottom, m_originalSize, adjustSize, fitToWidth, fitToHeight};
+    QWidget *alignHost = nullptr;
+    QToolBar *tbAlign = nullptr;
+    if (KdenliveSettings::storyAppearance() == QLatin1String("story")) {
+        alignHost = new QWidget(parent);
+        auto *grid = new QGridLayout(alignHost);
+        grid->setContentsMargins(0, 0, 0, 0);
+        grid->setHorizontalSpacing(2);
+        grid->setVerticalSpacing(2);
+        grid->addWidget(ratioButton, 0, 0);
+        for (int i = 0; i < alignActions.size(); ++i) {
+            auto *button = new QToolButton(alignHost);
+            button->setDefaultAction(alignActions.at(i));
+            button->setAutoRaise(true);
+            button->setIconSize(QSize(size, size));
+            button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+            const int slot = i + 1;
+            grid->addWidget(button, slot / 5, slot % 5);
+        }
+        m_allWidgets << alignHost;
+    } else {
+        tbAlign = new QToolBar(parent);
+        tbAlign->setIconSize(QSize(size, size));
+        tbAlign->setStyleSheet(QStringLiteral("QToolBar { padding: 0; } QToolBar QToolButton { padding: 0; margin: 0; }"));
+        tbAlign->setFixedHeight(m_spinX->height());
+        tbAlign->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        for (QAction *action : alignActions) {
+            tbAlign->addAction(action);
+        }
+        tbAlign->setMinimumWidth(m_spinX->height());
+        m_allWidgets << tbAlign;
+    }
 
     QHBoxLayout *scaleLayout = new QHBoxLayout;
     m_spinSize = new DragValue(i18n("Scale"), 100, 2, allowNullRect ? 0 : 1, 99000, -1, i18n("%"), false, false, parent, true);
@@ -176,20 +224,28 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     m_allWidgets << m_spinSize;
     int opacityLabel = 0;
 
+    const bool story = KdenliveSettings::storyAppearance() == QLatin1String("story");
+    QLabel *opacityRowLabel = nullptr;
     if (useOpacity) {
         m_opacity = new DragValue(i18n("Opacity"), 100, 0, 0, 100, -1, i18n("%"), false, false, parent, true);
         m_opacity->setDataProviderCallback(dataProviderCallback);
         m_opacity->setValue((int)(opacity * m_opacityFactor));
         connect(m_opacity, &DragValue::customValueChanged, this, [&]() { Q_EMIT valueChanged(getValue(), 4, m_frameForRect); });
         m_opacity->setObjectName("spinO");
-        label = m_opacity->createLabel();
-        opacityLabel = label->sizeHint().width();
-        maxLabelWidth = qMax(maxLabelWidth, opacityLabel);
-        scaleLayout->addWidget(label);
-        scaleLayout->addSpacing(layout->horizontalSpacing() / 3);
-        scaleLayout->addWidget(m_opacity);
         m_allWidgets << m_opacity;
-        m_allWidgets << label;
+        if (story) {
+            // Scale and Opacity are both percent fields. One row lets them paint over each other.
+            opacityRowLabel = m_opacity->createLabel();
+            m_allWidgets << opacityRowLabel;
+        } else {
+            label = m_opacity->createLabel();
+            opacityLabel = label->sizeHint().width();
+            maxLabelWidth = qMax(maxLabelWidth, opacityLabel);
+            scaleLayout->addWidget(label);
+            scaleLayout->addSpacing(layout->horizontalSpacing() / 3);
+            scaleLayout->addWidget(m_opacity);
+            m_allWidgets << label;
+        }
     }
     scaleLayout->addStretch(10);
     maxLabelWidth += layout->horizontalSpacing() / 3;
@@ -201,33 +257,62 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     int offset = qMax(m_spinX->sizeHint().width(), m_spinWidth->sizeHint().width());
     offset = qMax(offset, m_spinSize->sizeHint().width());
     maxLabelWidth += offset;
+    if (story) {
+        const QFontMetrics metrics(parent->font());
+        // Two values, the Y/H label, and the aspect lock have to share the field
+        // column of a narrow inspector. A wider spin paints over the next label.
+        const int pairWidth = qBound(40, metrics.horizontalAdvance(QStringLiteral("0000")) + 10, 46);
+        const int percentWidth = qBound(pairWidth, metrics.horizontalAdvance(QStringLiteral("100.00 %")) + 16, 108);
+        const QList<DragValue *> paired = {m_spinX, m_spinY, m_spinWidth, m_spinHeight};
+        for (DragValue *spin : paired) {
+            if (spin != nullptr) {
+                spin->containWidth(pairWidth);
+            }
+        }
+        if (m_spinSize != nullptr) {
+            m_spinSize->containWidth(percentWidth);
+        }
+        if (m_opacity != nullptr) {
+            m_opacity->containWidth(percentWidth);
+        }
+    }
     int diff = maxLabelWidth - posLabel;
-    if (diff > 0) {
+    if (!story && diff > 0) {
         poslayout->insertSpacing(1, diff);
     }
     label = m_spinX->createLabel();
     layout->addRow(label, poslayout);
     m_allWidgets << label;
     diff = maxLabelWidth - sizeLabel;
-    if (diff > 0) {
+    if (!story && diff > 0) {
         sizelayout->insertSpacing(1, diff);
     }
     label = m_spinWidth->createLabel();
     layout->addRow(label, sizelayout);
     m_allWidgets << label;
     label = new QLabel(i18n("Align"));
-    tbAlign->setMinimumHeight(tbAlign->sizeHint().height());
-    layout->addRow(label, tbAlign);
+    if (alignHost != nullptr) {
+        layout->addRow(label, alignHost);
+    } else {
+        tbAlign->setMinimumHeight(tbAlign->sizeHint().height());
+        layout->addRow(label, tbAlign);
+    }
     m_allWidgets << label;
     if (opacityLabel > 0) {
         diff = maxLabelWidth - opacityLabel;
-        if (diff > 0) {
+        if (!story && diff > 0) {
             scaleLayout->insertSpacing(1, diff);
         }
     }
     label = m_spinSize->createLabel();
     layout->addRow(label, scaleLayout);
     m_allWidgets << label;
+    if (opacityRowLabel != nullptr && m_opacity != nullptr) {
+        auto *opacityRow = new QHBoxLayout;
+        opacityRow->addWidget(m_opacity);
+        opacityRow->addStretch(1);
+        layout->addRow(opacityRowLabel, opacityRow);
+    }
 
     slotUpdateGeometryRect(rect);
     slotAdjustRectKeyframeValue();

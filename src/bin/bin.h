@@ -30,6 +30,8 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 
 #include <KRecentDirs>
 
+#include <memory>
+
 class AbstractProjectItem;
 class BinItemDelegate;
 class BinListItemDelegate;
@@ -38,6 +40,7 @@ class EffectStackModel;
 class InvalidDialog;
 class TranscodeSeek;
 class KdenliveDoc;
+class QSplitter;
 class KSelectAction;
 class KeyframeModelList;
 class TagWidget;
@@ -51,6 +54,9 @@ class QMenu;
 class QScrollArea;
 class QTimeLine;
 class QToolBar;
+class QLabel;
+class QSlider;
+class QSortFilterProxyModel;
 class QToolButton;
 class QUndoCommand;
 class QVBoxLayout;
@@ -288,6 +294,8 @@ public:
     void blockBin(bool block);
     void doMoveFolder(const QString &id, const QString &newParentId);
     void setupGeneratorMenu();
+    /** @brief Story workspace: folder sidebar beside the thumbnail browser. */
+    void applyStoryBrowser(bool enabled);
     QMenu *addClipMenu() const;
     void setReadyCallBack(const std::function<void(const QString &)> &cb);
     void setSuggestedDuration(int duration);
@@ -379,6 +387,9 @@ public:
     QStringList sequenceReferencedClips(const QUuid &uuid) const;
     /** @brief Define a thumbnail for a sequence clip. */
     void setSequenceThumbnail(const QUuid &uuid, int frame);
+    /** @brief Duplicate a timeline sequence clip. Does not copy source media. */
+    /** @param openCopy When false, the copy stays in the bin and the current timeline stays active. */
+    bool duplicateSequenceByBinId(const QString &binId, bool openCopy = true);
     /** @brief When saving or rendering, copy timewarp temporary playlists to the correct folder. */
     void moveTimeWarpToFolder(const QDir sequenceFolder, bool copy);
     /** @brief Create new sequence clip
@@ -581,6 +592,19 @@ private:
     bool m_isMainBin;
     std::shared_ptr<ProjectItemModel> m_itemModel;
     QAbstractItemView *m_itemView;
+    QSplitter *m_storySplit{nullptr};
+    QWidget *m_storyFolderPane{nullptr};
+    QWidget *m_storyBrowserPane{nullptr};
+    QVBoxLayout *m_storyBrowserLayout{nullptr};
+    QTreeView *m_storyFolders{nullptr};
+    QToolButton *m_storyAllMedia{nullptr};
+    QLabel *m_storySourceLabel{nullptr};
+    QSlider *m_storyZoom{nullptr};
+    std::unique_ptr<QSortFilterProxyModel> m_storyFolderProxy;
+    bool m_storyBrowser{false};
+    void bindStoryFolders();
+    void syncStoryFolderSelection();
+    void updateStorySourceLine();
     BinItemDelegate *m_binTreeViewDelegate;
     BinListItemDelegate *m_binListViewDelegate;
     std::unique_ptr<ProjectSortProxyModel> m_proxyModel;

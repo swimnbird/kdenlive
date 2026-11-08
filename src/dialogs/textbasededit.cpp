@@ -4,11 +4,13 @@
 */
 
 #include "textbasededit.h"
+#include "bin/clipcreator.hpp"
 #include "bin/bin.h"
 #include "bin/projectclip.h"
 #include "bin/projectitemmodel.h"
 #include "bin/projectsubclip.h"
 #include "core.h"
+#include "doc/kdenlivedoc.h"
 #include "kdenlivesettings.h"
 #include "mainwindow.h"
 #include "monitor/monitor.h"
@@ -16,6 +18,12 @@
 #include "pythoninterfaces/speechtotextwhisper.h"
 #include "timeline2/view/timelinecontroller.h"
 #include "timeline2/view/timelinewidget.h"
+#include "transcript/cleanupdialog.hpp"
+#include "transcript/fillerreview.hpp"
+#include "transcript/silenceanalyzer.hpp"
+#include "transcript/storytimelinebridge.hpp"
+#include "transcript/timeconvert.hpp"
+#include "transcript/transcriptedit.hpp"
 #include <profiles/profilemodel.hpp>
 
 #include <KColorScheme>
@@ -37,6 +45,7 @@
 #include <QTextDocumentFragment>
 #include <QToolButton>
 
+#include <algorithm>
 #include <memory>
 
 VideoTextEdit::VideoTextEdit(QWidget *parent)
@@ -54,7 +63,7 @@ VideoTextEdit::VideoTextEdit(QWidget *parent)
 
     bookmarkAction = new QAction(QIcon::fromTheme(QStringLiteral("bookmark-new")), i18n("Add marker"), this);
     bookmarkAction->setEnabled(false);
-    deleteAction = new QAction(QIcon::fromTheme(QStringLiteral("edit-delete")), i18n("Delete selection"), this);
+    deleteAction = new QAction(QIcon::fromTheme(QStringLiteral("edit-delete")), i18n("Delete spoken words"), this);
     deleteAction->setEnabled(false);
 }
 
@@ -382,8 +391,20 @@ void VideoTextEdit::resizeEvent(QResizeEvent *e)
     lineNumberArea->setGeometry(QRect(cr.left(), cr.top(), lineNumberAreaWidth(), cr.height()));
 }
 
+void VideoTextEdit::setTranscript(TranscriptDocument *document)
+{
+    m_transcript = document;
+}
+
 void VideoTextEdit::keyPressEvent(QKeyEvent *e)
 {
+    QString message;
+    if (StoryTranscriptEdit::applyCorrectionKey(this, e, m_transcript, &message)) {
+        if (!message.isEmpty()) {
+            pCore->displayMessage(message, InformationMessage, 4000);
+        }
+        return;
+    }
     QTextEdit::keyPressEvent(e);
 }
 
@@ -642,6 +663,10 @@ void VideoTextEdit::mouseMoveEvent(QMouseEvent *e)
     } else {
         const QString link = anchorAt(e->pos());
         viewport()->setCursor(link.isEmpty() ? Qt::ArrowCursor : Qt::PointingHandCursor);
+        if (KdenliveSettings::storySkim() && !link.isEmpty()) {
+            const double startMs = link.section(QLatin1Char('#'), 1).section(QLatin1Char(':'), 0, 0).toDouble();
+            pCore->getMonitor(Kdenlive::ClipMonitor)->requestSeek(GenTime(startMs).frames(pCore->getCurrentFps()));
+        }
     }
 }
 
@@ -690,6 +715,7 @@ TextBasedEdit::TextBasedEdit(QWidget *parent)
     auto *l = new QVBoxLayout;
     l->setContentsMargins(0, 0, 0, 0);
     m_visualEditor = new VideoTextEdit(this);
+    m_visualEditor->setTranscript(&m_transcript);
     m_visualEditor->installEventFilter(this);
     l->addWidget(m_visualEditor);
     text_frame->setLayout(l);
@@ -706,8 +732,14 @@ TextBasedEdit::TextBasedEdit(QWidget *parent)
     QAction *createSequence = new QAction(QIcon::fromTheme(QStringLiteral("list-add")), i18n("Create new sequence with edit"), this);
     QAction *insertSelection = new QAction(QIcon::fromTheme(QStringLiteral("timeline-insert")), i18n("Insert selection in timeline"), this);
     QAction *saveAsPlaylist = new QAction(QIcon::fromTheme(QStringLiteral("document-save-as")), i18n("Save edited text in a playlist file"), this);
+    QAction *createSelectionSequence = new QAction(QIcon::fromTheme(QStringLiteral("list-add")), i18n("Create sequence from selection"), this);
+    QAction *reviewFillersAction = new QAction(i18n("Review filler words…"), this);
+    QAction *reviewPausesAction = new QAction(i18n("Review pauses…"), this);
     insertMenu->addAction(createSequence);
+    insertMenu->addAction(createSelectionSequence);
     insertMenu->addAction(insertSelection);
+    insertMenu->addAction(reviewFillersAction);
+    insertMenu->addAction(reviewPausesAction);
     insertMenu->addSeparator();
     insertMenu->addAction(saveAsPlaylist);
     button_insert->setMenu(insertMenu);
@@ -717,6 +749,9 @@ TextBasedEdit::TextBasedEdit(QWidget *parent)
     language_box->setToolTip(i18n("Language"));
 
     connect(createSequence, &QAction::triggered, this, &TextBasedEdit::createSequence);
+    connect(createSelectionSequence, &QAction::triggered, this, &TextBasedEdit::createSequenceFromSelection);
+    connect(reviewFillersAction, &QAction::triggered, this, &TextBasedEdit::reviewFillers);
+    connect(reviewPausesAction, &QAction::triggered, this, &TextBasedEdit::reviewPauses);
     connect(insertSelection, &QAction::triggered, this, &TextBasedEdit::insertToTimeline);
     connect(saveAsPlaylist, &QAction::triggered, this, [&]() { previewPlaylist(true); });
     insertSelection->setEnabled(false);
@@ -726,7 +761,41 @@ TextBasedEdit::TextBasedEdit(QWidget *parent)
         m_visualEditor->bookmarkAction->setEnabled(hasSelection);
         m_visualEditor->deleteAction->setEnabled(hasSelection);
         insertSelection->setEnabled(hasSelection);
+        if (!hasSelection) {
+            return;
+        }
+        QTextCursor selected = m_visualEditor->textCursor();
+        const QString anchorStart = m_visualEditor->selectionStartAnchor(selected, selected.selectionStart(), selected.selectionEnd());
+        const QString anchorEnd = m_visualEditor->selectionEndAnchor(selected, selected.selectionEnd(), selected.selectionStart());
+        if (anchorStart.isEmpty() || anchorEnd.isEmpty()) {
+            return;
+        }
+        const double startMs = anchorStart.section(QLatin1Char('#'), 1).section(QLatin1Char(':'), 0, 0).toDouble();
+        const double endMs = anchorEnd.section(QLatin1Char('#'), 1).section(QLatin1Char(':'), 1, 1).toDouble();
+        if (endMs > startMs && pCore->window() && pCore->window()->getCurrentTimeline()) {
+            const int inFrame = StoryTime::secondsToFrame(startMs, pCore->getCurrentFps());
+            const int outFrame = StoryTime::secondsToFrame(endMs, pCore->getCurrentFps());
+            pCore->window()->getCurrentTimeline()->controller()->setZone(QPoint(inFrame, outFrame), false);
+        }
     });
+    if (Monitor *clipMonitor = pCore->getMonitor(Kdenlive::ClipMonitor)) {
+        connect(clipMonitor, &Monitor::seekPosition, this, [this](int frame) {
+            highlightSourceSeconds(StoryTime::frameToSeconds(frame, pCore->getCurrentFps()));
+        });
+    }
+    if (Monitor *projectMonitor = pCore->getMonitor(Kdenlive::ProjectMonitor)) {
+        connect(projectMonitor, &Monitor::seekPosition, this, [this](int frame) {
+            double sourceSeconds = -1.0;
+            if (pCore->window() && pCore->window()->getCurrentTimeline()) {
+                sourceSeconds = StoryTimelineBridge::sourceSecondsForTimelineFrame(pCore->window()->getCurrentTimeline()->model(), m_binId, frame,
+                                                                                   pCore->getCurrentFps());
+            }
+            if (sourceSeconds < 0.0) {
+                sourceSeconds = StoryTime::frameToSeconds(frame, pCore->getCurrentFps());
+            }
+            highlightSourceSeconds(sourceSeconds);
+        });
+    }
 
     enableEditActions(false, false);
     connect(button_start, &QPushButton::clicked, this, &TextBasedEdit::startRecognition);
@@ -736,6 +805,8 @@ TextBasedEdit::TextBasedEdit(QWidget *parent)
             m_speechJob->kill();
         } else if (m_tCodeJob && m_tCodeJob->state() == QProcess::Running) {
             m_tCodeJob->kill();
+        } else if (m_silenceJob) {
+            m_silenceJob->cancel();
         }
     });
     connect(pCore.get(), &Core::speechModelUpdate, this, [&](SpeechToTextEngine::EngineType engine, const QStringList &models) {
@@ -768,7 +839,7 @@ TextBasedEdit::TextBasedEdit(QWidget *parent)
     speech_zone->setChecked(KdenliveSettings::speech_zone());
     connect(speech_zone, &QCheckBox::checkStateChanged, [](Qt::CheckState state) { KdenliveSettings::setSpeech_zone(state == Qt::Checked); });
     button_delete->setDefaultAction(m_visualEditor->deleteAction);
-    button_delete->setToolTip(i18n("Delete selected text"));
+    button_delete->setToolTip(i18n("Delete the selected spoken words from the timeline. Typing a correction does not cut footage."));
     connect(m_visualEditor->deleteAction, &QAction::triggered, this, &TextBasedEdit::deleteItem);
 
     button_bookmark->setDefaultAction(m_visualEditor->bookmarkAction);
@@ -1339,6 +1410,9 @@ void TextBasedEdit::slotProcessSpeechStatus(int, QProcess::ExitStatus status)
             oldProperties.insert(QStringLiteral("kdenlive:speech"), oldSpeech);
             QMap<QString, QString> properties;
             properties.insert(QStringLiteral("kdenlive:speech"), m_visualEditor->toHtml());
+            const QString oldWords = clipItem ? clipItem->getProducerProperty(QStringLiteral("kdenlive:storywords")) : QString();
+            oldProperties.insert(QStringLiteral("kdenlive:storywords"), oldWords);
+            properties.insert(QStringLiteral("kdenlive:storywords"), m_transcript.toJson());
             pCore->bin()->slotEditClipCommand(m_binId, oldProperties, properties);
         }
     }
@@ -1422,11 +1496,16 @@ void TextBasedEdit::slotProcessWhisperSpeech()
             sentenceZone = wordZone;
             continue;
         }
-        fmt.setAnchor(true);
-        fmt.setAnchorHref(QStringLiteral("%1#%2:%3").arg(m_binId).arg(wordZone.first).arg(wordZone.second));
-        cursor.insertText(text, fmt);
-        fmt.setAnchor(false);
-        cursor.insertText(QStringLiteral(" "), fmt);
+        TranscriptWord spokenWord;
+        spokenWord.id = m_transcript.words.size() + 1;
+        spokenWord.spoken = text;
+        spokenWord.display = text;
+        spokenWord.startSec = wordZone.first;
+        spokenWord.endSec = wordZone.second;
+        if (spokenWord.endSec > spokenWord.startSec) {
+            m_transcript.words.push_back(spokenWord);
+            cursor.insertText(text + QLatin1Char(' '), StoryTranscriptEdit::formatForWord(m_binId, spokenWord));
+        }
     }
     m_visualEditor->textCursor().insertBlock(cursor.blockFormat());
     m_visualEditor->speechZones << sentenceZone;
@@ -1533,7 +1612,16 @@ void TextBasedEdit::deleteItem()
             double startMs = anchorStart.section(QLatin1Char('#'), 1).section(QLatin1Char(':'), 0, 0).toDouble();
             double endMs = anchorEnd.section(QLatin1Char('#'), 1).section(QLatin1Char(':'), 1, 1).toDouble();
             if (startMs < endMs) {
-                Fun redo = [this, start, end, startMs, endMs, blockEnd]() {
+                Fun timelineUndo = []() { return true; };
+                Fun timelineRedo = []() { return true; };
+                QString error;
+                if (!rippleSourceRange(startMs, endMs, timelineUndo, timelineRedo, &error)) {
+                    if (!error.isEmpty()) {
+                        showMessage(error, KMessageWidget::Warning);
+                    }
+                    return;
+                }
+                Fun textRedo = [this, start, end, startMs, endMs, blockEnd]() {
                     QTextCursor tCursor = m_visualEditor->textCursor();
                     tCursor.setPosition(start);
                     tCursor.setPosition(end, QTextCursor::KeepAnchor);
@@ -1542,13 +1630,11 @@ void TextBasedEdit::deleteItem()
                     if (blockEnd) {
                         tCursor.deleteChar();
                     }
-                    // Reset selection and rebuild line numbers
                     m_visualEditor->rebuildZones();
                     previewPlaylist(false);
                     return true;
                 };
-                Fun undo = [this, start, fr = fragment, startMs, endMs]() {
-                    qDebug() << "::: PASTING FRAGMENT: " << fr.toPlainText();
+                Fun textUndo = [this, start, fr = fragment, startMs, endMs]() {
                     QTextCursor tCursor = m_visualEditor->textCursor();
                     QPoint p(GenTime(startMs).frames(pCore->getCurrentFps()), GenTime(endMs).frames(pCore->getCurrentFps()));
                     int ix = m_visualEditor->cutZones.indexOf(p);
@@ -1557,13 +1643,14 @@ void TextBasedEdit::deleteItem()
                     }
                     tCursor.setPosition(start);
                     tCursor.insertFragment(fr);
-                    // Reset selection and rebuild line numbers
                     m_visualEditor->rebuildZones();
                     previewPlaylist(false);
                     return true;
                 };
-                redo();
-                pCore->pushUndo(undo, redo, i18nc("@action", "Edit clip text"));
+                textRedo();
+                PUSH_LAMBDA(textRedo, timelineRedo);
+                PUSH_FRONT_LAMBDA(textUndo, timelineUndo);
+                pCore->pushUndo(timelineUndo, timelineRedo, i18nc("@action", "Delete spoken words"));
             }
         }
     } else {
@@ -1741,6 +1828,13 @@ void TextBasedEdit::openClip(std::shared_ptr<ProjectClip> clip)
             speech = clip->getProducerProperty(QStringLiteral("kdenlive:speech"));
             clipNameLabel->setText(clip->clipName());
         }
+        const QString storyWords = clip->getProducerProperty(QStringLiteral("kdenlive:storywords"));
+        if (!storyWords.isEmpty()) {
+            m_transcript = TranscriptDocument::fromJson(storyWords);
+            rebuildEditorFromTranscript();
+            enableEditActions(true, true);
+            return;
+        }
         if (speech.isEmpty()) {
             // Nothing else to do
             enableEditActions(false, true);
@@ -1793,4 +1887,294 @@ void TextBasedEdit::enableEditActions(bool enable, bool enableStart)
     button_remove_silence->setEnabled(enable);
     button_search->setEnabled(enable);
     button_start->setEnabled(enableStart);
+}
+
+void TextBasedEdit::rebuildEditorFromTranscript()
+{
+    m_visualEditor->clear();
+    QTextCursor cursor = m_visualEditor->textCursor();
+    for (const TranscriptWord &word : m_transcript.words) {
+        cursor.insertText(word.display + QLatin1Char(' '), StoryTranscriptEdit::formatForWord(m_binId, word));
+    }
+}
+
+bool TextBasedEdit::rippleSourceRange(double startSec, double endSec, Fun &undo, Fun &redo, QString *error)
+{
+    const TranscriptDocument before = m_transcript;
+    TranscriptDocument after = before;
+    after.applyRipple(startSec, endSec);
+    m_transcript = after;
+    Fun restore = [this, before]() {
+        m_transcript = before;
+        rebuildEditorFromTranscript();
+        return true;
+    };
+    Fun reapply = [this, after]() {
+        m_transcript = after;
+        return true;
+    };
+    PUSH_FRONT_LAMBDA(restore, undo);
+    PUSH_LAMBDA(reapply, redo);
+    auto timeline = pCore->window() && pCore->window()->getCurrentTimeline() ? pCore->window()->getCurrentTimeline()->model() : nullptr;
+    if (!timeline) {
+        if (error) {
+            *error = i18n("The transcript changed, and there is no timeline to cut.");
+        }
+        return true;
+    }
+    QStringList skipped;
+    const int startFrame = StoryTime::secondsToFrame(startSec, pCore->getCurrentFps());
+    const int endFrame = StoryTime::secondsToFrame(endSec, pCore->getCurrentFps());
+    const QVector<QPair<int, int>> spans = StoryTimelineBridge::spansForBinRange(timeline, m_binId, startFrame, endFrame, &skipped);
+    if (!skipped.isEmpty() && error) {
+        *error = skipped.join(QLatin1Char('\n'));
+    }
+    if (spans.isEmpty()) {
+        if (error && error->isEmpty()) {
+            *error = i18n("No timeline clip matched this transcript range, so no footage was cut.");
+        }
+        return true;
+    }
+    for (const QPair<int, int> &span : spans) {
+        QString spanError;
+        if (!StoryTimelineBridge::rippleDeleteFrames(timeline, span.first, span.second, undo, redo, &spanError)) {
+            undo();
+            if (error) {
+                *error = spanError;
+            }
+            return false;
+        }
+    }
+    return true;
+}
+
+void TextBasedEdit::createSequenceFromSelection()
+{
+    if (!pCore->window() || !pCore->currentDoc()) {
+        showMessage(i18n("Creating a sequence from a passage needs an open project."), KMessageWidget::Information);
+        return;
+    }
+    QTextCursor cursor = m_visualEditor->textCursor();
+    if (!cursor.hasSelection()) {
+        showMessage(i18n("Select a passage in the transcript first."), KMessageWidget::Information);
+        return;
+    }
+    const QString anchorStart = m_visualEditor->selectionStartAnchor(cursor, cursor.selectionStart(), cursor.selectionEnd());
+    const QString anchorEnd = m_visualEditor->selectionEndAnchor(cursor, cursor.selectionEnd(), cursor.selectionStart());
+    if (anchorStart.isEmpty() || anchorEnd.isEmpty()) {
+        showMessage(i18n("The selection has no timing."), KMessageWidget::Warning);
+        return;
+    }
+    const int inFrame = GenTime(anchorStart.section(QLatin1Char('#'), 1).section(QLatin1Char(':'), 0, 0).toDouble()).frames(pCore->getCurrentFps());
+    const int outFrame = GenTime(anchorEnd.section(QLatin1Char('#'), 1).section(QLatin1Char(':'), 1, 1).toDouble()).frames(pCore->getCurrentFps());
+    if (outFrame <= inFrame) {
+        return;
+    }
+    std::shared_ptr<ProjectClip> clipItem = pCore->bin()->getBinClip(m_binId);
+    if (!clipItem) {
+        showMessage(i18n("The transcript clip is no longer in the project bin."), KMessageWidget::Warning);
+        return;
+    }
+    Fun undo = []() { return true; };
+    Fun redo = []() { return true; };
+    const QString name = i18n("%1 passage", clipItem->clipName());
+    const QString sequenceId = ClipCreator::createPlaylistClipWithUndo(name, {1, 1}, QStringLiteral("-1"), pCore->projectItemModel(), undo, redo);
+    if (sequenceId == QLatin1String("-1") || sequenceId.isEmpty()) {
+        undo();
+        showMessage(i18n("Could not create a sequence from the selection."), KMessageWidget::Warning);
+        return;
+    }
+    std::shared_ptr<ProjectClip> sequenceClip = pCore->bin()->getBinClip(sequenceId);
+    const std::shared_ptr<TimelineItemModel> sequence =
+        sequenceClip ? pCore->currentDoc()->getTimeline(sequenceClip->getSequenceUuid()) : nullptr;
+    if (!sequence) {
+        undo();
+        showMessage(i18n("The passage sequence was created, but its timeline is not available."), KMessageWidget::Warning);
+        return;
+    }
+    const QString zone = QStringLiteral("%1/%2/%3").arg(m_binId).arg(inFrame).arg(outFrame - 1);
+    bool inserted = false;
+    int newId = -1;
+    if (clipItem->hasVideo()) {
+        const int video = StoryTimelineBridge::primaryVideoTrack(sequence);
+        inserted = video >= 0 && sequence->requestClipInsertion(QStringLiteral("V") + zone, video, 0, newId, true, false, false, undo, redo, {}, 0);
+    }
+    if (clipItem->hasAudio()) {
+        int audioTrack = -1;
+        for (int trackId : sequence->getAllTracksIds()) {
+            if (sequence->isAudioTrack(trackId)) {
+                audioTrack = trackId;
+                break;
+            }
+        }
+        const bool audioInserted =
+            audioTrack >= 0 && sequence->requestClipInsertion(QStringLiteral("A") + zone, audioTrack, 0, newId, true, false, false, undo, redo, {}, 0);
+        inserted = clipItem->hasVideo() ? inserted && audioInserted : audioInserted;
+    }
+    if (!inserted) {
+        undo();
+        showMessage(i18n("The passage sequence was created, but the media could not be inserted."), KMessageWidget::Warning);
+        return;
+    }
+    pCore->pushUndo(undo, redo, i18nc("@action", "Create sequence from transcript"));
+    showMessage(i18n("The selected passage is now an editable sequence in the project bin."), KMessageWidget::Information);
+}
+
+bool TextBasedEdit::applyApprovedSourceCuts(const QVector<QPair<double, double>> &ranges, bool duplicateFirst, const QString &undoText, QString *error)
+{
+    if (ranges.isEmpty()) {
+        return false;
+    }
+    if (duplicateFirst && pCore->window() && pCore->window()->getCurrentTimeline()) {
+        const QString sequenceId = pCore->projectItemModel()->getSequenceId(pCore->window()->getCurrentTimeline()->getUuid());
+        if (!sequenceId.isEmpty() && !pCore->bin()->duplicateSequenceByBinId(sequenceId, false)) {
+            if (error) {
+                *error = i18n("Could not duplicate the sequence before cleanup.");
+            }
+            return false;
+        }
+    }
+    QVector<QPair<double, double>> ordered = ranges;
+    std::sort(ordered.begin(), ordered.end(), [](const QPair<double, double> &a, const QPair<double, double> &b) { return a.first > b.first; });
+    const TranscriptDocument before = m_transcript;
+    for (const QPair<double, double> &range : ordered) {
+        m_transcript.removeSpokenRange(range.first, range.second);
+        StoryTranscriptEdit::removeWordsInside(m_visualEditor, range.first, range.second);
+    }
+    const TranscriptDocument after = m_transcript;
+    Fun undo = [this, before]() {
+        m_transcript = before;
+        rebuildEditorFromTranscript();
+        return true;
+    };
+    Fun redo = [this, after]() {
+        m_transcript = after;
+        rebuildEditorFromTranscript();
+        return true;
+    };
+    auto timeline = pCore->window() && pCore->window()->getCurrentTimeline() ? pCore->window()->getCurrentTimeline()->model() : nullptr;
+    if (!StoryTimelineBridge::applySourceCuts(timeline, m_binId, ordered, undo, redo, error)) {
+        undo();
+        return false;
+    }
+    pCore->pushUndo(undo, redo, undoText);
+    StoryTranscriptEdit::showRetranscribeFlags(m_visualEditor, m_transcript);
+    return true;
+}
+
+void TextBasedEdit::reviewFillers()
+{
+    FillerLists lists = FillerReview::defaults();
+    if (!KdenliveSettings::storyFillerWords().isEmpty()) {
+        lists.fillers = KdenliveSettings::storyFillerWords().split(QLatin1Char(','), Qt::SkipEmptyParts);
+    }
+    if (!KdenliveSettings::storyCautionWords().isEmpty()) {
+        lists.cautionPhrases = KdenliveSettings::storyCautionWords().split(QLatin1Char('|'), Qt::SkipEmptyParts);
+    }
+    QVector<StoryCleanupChoice> choices;
+    for (const FillerCandidate &candidate : FillerReview::findCandidates(m_transcript, lists)) {
+        if (candidate.excluded) {
+            continue;
+        }
+        StoryCleanupChoice choice;
+        choice.label = candidate.text;
+        choice.startSec = candidate.startSec;
+        choice.endSec = candidate.endSec;
+        choice.checked = candidate.defaultApproved;
+        choice.note = candidate.kind == FillerKind::Caution ? i18n("May be meaningful — left unchecked") : i18n("Filler");
+        choices.push_back(choice);
+    }
+    if (choices.isEmpty()) {
+        showMessage(i18n("No filler candidates in this transcript."), KMessageWidget::Information);
+        return;
+    }
+    bool duplicate = true;
+    const QVector<QPair<double, double>> picked = StoryCleanup::choose(
+        this, i18n("Review filler words"),
+        i18n("Checked words are removed from the timeline. Caution phrases such as “like” and “you know” start unchecked. Corrections typed in the transcript are not cuts."),
+        choices, &duplicate);
+    if (picked.isEmpty()) {
+        return;
+    }
+    QString error;
+    if (!applyApprovedSourceCuts(picked, duplicate, i18n("Remove filler words"), &error) && !error.isEmpty()) {
+        showMessage(error, KMessageWidget::Warning);
+    }
+}
+
+void TextBasedEdit::reviewPauses()
+{
+    std::shared_ptr<ProjectClip> clip = pCore->bin()->getBinClip(m_binId);
+    if (!clip || clip->url().isEmpty()) {
+        showMessage(i18n("This clip has no media file to measure."), KMessageWidget::Warning);
+        return;
+    }
+    if (m_silenceJob && m_silenceJob->isRunning()) {
+        return;
+    }
+    m_pauseParams.thresholdDb = KdenliveSettings::storySilenceThresholdDb();
+    m_pauseParams.minDurationSec = KdenliveSettings::storySilenceMinDuration();
+    m_pauseParams.speechPaddingSec = KdenliveSettings::storySilencePadding();
+    m_pauseParams.retainedPauseSec = KdenliveSettings::storySilenceRetain();
+    if (m_silenceJob == nullptr) {
+        m_silenceJob = new SilenceAnalysisJob(this);
+        connect(m_silenceJob, &SilenceAnalysisJob::finished, this, &TextBasedEdit::finishPauseReview);
+    }
+    frame_progress->setVisible(true);
+    speech_progress->setRange(0, 0);
+    showMessage(i18n("Measuring silence. Playback and editing stay available. Abort cancels the measurement."), KMessageWidget::Information);
+    m_silenceJob->start(clip->url(), m_pauseParams);
+}
+
+void TextBasedEdit::finishPauseReview(const QVector<SilenceRegion> &regions, const QString &error)
+{
+    frame_progress->setVisible(false);
+    speech_progress->setRange(0, 100);
+    if (!error.isEmpty() && regions.isEmpty()) {
+        showMessage(error, KMessageWidget::Warning);
+        return;
+    }
+    QVector<StoryCleanupChoice> choices;
+    for (const PauseEdit &edit : SilenceAnalyzer::planPauseEdits(regions, PauseEditMode::Shorten, m_pauseParams, {})) {
+        StoryCleanupChoice choice;
+        choice.startSec = edit.cutStartSec;
+        choice.endSec = edit.cutEndSec;
+        choice.checked = false;
+        choice.label = i18n("%1–%2 s", QString::number(edit.originalStartSec, 'f', 2), QString::number(edit.originalEndSec, 'f', 2));
+        choice.note = i18n("Shorten, keep %1 s and %2 s of speech padding", QString::number(m_pauseParams.retainedPauseSec, 'f', 2),
+                           QString::number(m_pauseParams.speechPaddingSec, 'f', 2));
+        choices.push_back(choice);
+    }
+    if (choices.isEmpty()) {
+        showMessage(i18n("No silence at the current threshold was found in the audio."), KMessageWidget::Information);
+        return;
+    }
+    bool duplicate = true;
+    const QVector<QPair<double, double>> picked =
+        StoryCleanup::choose(this, i18n("Review pauses"),
+                             i18n("Silence comes from the audio level, not from gaps in the transcript. Checked pauses are shortened on the timeline and can be undone. The sequence is duplicated first unless you clear that box."),
+                             choices, &duplicate);
+    if (picked.isEmpty()) {
+        return;
+    }
+    QString applyError;
+    if (!applyApprovedSourceCuts(picked, duplicate, i18n("Shorten pauses"), &applyError) && !applyError.isEmpty()) {
+        showMessage(applyError, KMessageWidget::Warning);
+    }
+}
+
+void TextBasedEdit::highlightPlayhead(int frame)
+{
+    highlightSourceSeconds(StoryTime::frameToSeconds(frame, pCore->getCurrentFps()));
+}
+
+void TextBasedEdit::highlightSourceSeconds(double sourceSeconds)
+{
+    if (m_visualEditor->textCursor().hasSelection() || sourceSeconds < 0.0) {
+        return;
+    }
+    const int id = m_transcript.wordAt(sourceSeconds);
+    if (id >= 0) {
+        StoryTranscriptEdit::highlightWord(m_visualEditor, id);
+    }
 }

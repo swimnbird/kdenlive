@@ -37,6 +37,8 @@ Rectangle {
     required property int trackTagWidth
     readonly property int resizeInProgress: trimInMouseArea.pressed
     border.width: 1
+    radius: K.KdenliveSettings.storyAppearance === "story" ? 6 : 0
+    border.color: K.KdenliveSettings.storyAppearance === "story" ? "#34343a" : "transparent"
 
     signal showHeaderMenu()
     signal showTargetMenu(int ix)

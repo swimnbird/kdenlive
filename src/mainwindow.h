@@ -220,6 +220,21 @@ public:
     bool hasRunningTask() const;
     /** @brief If a render task is running */
     bool hasRunningRenderTask() const;
+    /** @brief Install the story-editing commands after the monitor actions exist. */
+    void setupStoryEditing();
+    /** Apply the story preset after the standard actions exist. */
+    void applyStartupStoryPreset();
+    /** Apply the selectable story appearance without replacing a saved theme or layout. */
+    void applyStartupStoryAppearance();
+    /** Reapply inspector titles after a dock layout restore. */
+    void applyStoryDockChrome(bool story);
+    void applyStorySurfaces(bool story);
+    /** Closed KDDockWidgets docks are unparented, so a child search cannot find them. */
+    static KDDockWidgets::QtWidgets::DockWidget *storyDockByName(const QString &dockId);
+    /** Opens or closes a story panel and keeps its toolbar action on the dock's real state. */
+    static void setStoryPanelVisible(const QString &dockId, QAction *panelAction, bool visible);
+    /** Follows View-menu and layout changes so the toolbar check matches the dock. */
+    static void bindStoryPanelAction(KDDockWidgets::QtWidgets::DockWidget *dock, QAction *panelAction);
 
 protected:
     /** @brief Closes the window.
@@ -228,6 +243,8 @@ protected:
      *     true otherwise */
     bool queryClose() override;
     bool m_windowClosing{false};
+    bool m_storyBuiltInSaved{false};
+    bool m_storyPreviousBuiltIn{false};
     void closeEvent(QCloseEvent *) override;
     QSize sizeHint() const override;
     bool eventFilter(QObject *object, QEvent *event) override;
@@ -259,6 +276,9 @@ private:
     void updateDockMenu();
     /** @brief Update the audio thumbnails action icon based on current zoom and toggle state */
     void updateAudioWaveformActionIcon();
+    void applyStoryAppearance(bool enabled);
+    void applyStoryMetrics(bool compact);
+    QString storySchemePath() const;
 
     OtioExport *m_otioExport{nullptr};
     OtioImport *m_otioImport{nullptr};
@@ -506,6 +526,20 @@ private Q_SLOTS:
     void slotInsertClipInsert();
     void slotExtractZone();
     void slotLiftZone();
+    void slotApplyStoryShortcuts();
+    void slotApplyClassicShortcuts();
+    void slotStoryAppend();
+    void slotStoryConnect();
+    void slotStoryInsertGap();
+    void slotStoryNudgeLeft();
+    void slotStoryNudgeRight();
+    void slotStorySelectClipRange();
+    void slotToggleStorySkim();
+    void slotToggleStoryRange();
+    void slotToggleStoryMagnetic();
+    void slotToggleStoryAppearance(bool enabled);
+    void slotStoryToggleDock(const QString &dockId, bool visible);
+    void slotStoryCloseGaps();
     void slotCreateRangeMarkerFromZone();
     void slotCreateRangeMarkerFromZoneQuick();
     void slotAddEffect(QAction *result);
