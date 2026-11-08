@@ -155,6 +155,8 @@ public:
     int spinSize();
     /** @brief Sets the minimum size for QSpinBox, used to set all spinboxes to the same width. */
     void setSpinSize(int width);
+    /** @brief Keep the spin inside this width so it cannot paint over the next control. */
+    void containWidth(int width);
     /** @brief Returns true if widget is currently being edited */
     bool hasEditFocus() const;
     /** @brief Returns the parameter's label widget */

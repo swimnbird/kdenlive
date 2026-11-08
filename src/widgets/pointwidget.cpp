@@ -5,8 +5,10 @@
 
 #include "pointwidget.h"
 #include "dragvalue.h"
+#include "kdenlivesettings.h"
 
 #include <KLocalizedString>
+#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QToolButton>
 
@@ -25,6 +27,11 @@ PointWidget::PointWidget(const QString &name, QPointF value, QPointF min, QPoint
     layout->addWidget(m_dragValX);
     layout->addWidget(m_dragValY);
     layout->addStretch(10);
+    if (KdenliveSettings::storyAppearance() == QLatin1String("story")) {
+        const int pairWidth = qBound(40, QFontMetrics(font()).horizontalAdvance(QStringLiteral("0.00")) + 10, 46);
+        m_dragValX->containWidth(pairWidth);
+        m_dragValY->containWidth(pairWidth);
+    }
     setFixedHeight(m_dragValX->minimumHeight());
 
     if (!comment.isEmpty()) {

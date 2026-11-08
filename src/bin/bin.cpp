@@ -3544,8 +3544,11 @@ void Bin::slotInitView(QAction *action)
         }
         if (m_listType == BinTreeView) {
             // save current treeview state (column width)
-            auto *view = static_cast<QTreeView *>(m_itemView);
-            m_headerInfo = view->header()->saveState();
+            // Story can switch to the icon browser before the tree header exists.
+            auto *view = qobject_cast<QTreeView *>(m_itemView);
+            if (view != nullptr && view->header() != nullptr) {
+                m_headerInfo = view->header()->saveState();
+            }
             m_showDate->setEnabled(true);
             m_showDesc->setEnabled(true);
             m_showRating->setEnabled(true);

@@ -2315,6 +2315,9 @@ std::pair<bool, bool> Core::assetHasAV(ObjectId id)
     case KdenliveObjectType::Master:
         return {true, true};
     case KdenliveObjectType::TimelineTrack: {
+        if (m_mainWindow == nullptr) {
+            return {false, true};
+        }
         auto timeline = m_mainWindow->getTimeline(id.uuid);
         if (timeline && timeline->model()->isAudioTrack(id.itemId)) {
             return {true, false};
@@ -2322,6 +2325,9 @@ std::pair<bool, bool> Core::assetHasAV(ObjectId id)
         return {false, true};
     }
     case KdenliveObjectType::TimelineClip: {
+        if (m_mainWindow == nullptr) {
+            return {false, true};
+        }
         auto timeline = m_mainWindow->getTimeline(id.uuid);
         if (timeline && timeline->model()->clipIsAudio(id.itemId)) {
             return {true, false};

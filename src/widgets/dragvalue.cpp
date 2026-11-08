@@ -13,6 +13,7 @@
 #include <KColorScheme>
 #include <KColorUtils>
 #include <KLocalizedString>
+#include <QAbstractSpinBox>
 #include <QAction>
 #include <QApplication>
 #include <QCache>
@@ -862,6 +863,18 @@ void DragValue::setSpinSize(int width)
         m_intEdit->setMinimumWidth(width);
     } else {
         m_doubleEdit->setMinimumWidth(width);
+    }
+}
+
+void DragValue::containWidth(int width)
+{
+    setMinimumWidth(width);
+    setMaximumWidth(width);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    QAbstractSpinBox *box = m_intEdit != nullptr ? static_cast<QAbstractSpinBox *>(m_intEdit) : static_cast<QAbstractSpinBox *>(m_doubleEdit);
+    if (box != nullptr) {
+        box->setMinimumWidth(0);
+        box->setMaximumWidth(width);
     }
 }
 

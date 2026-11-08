@@ -35,6 +35,7 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QDialogButtonBox>
+#include <QFontMetrics>
 #include <QFormLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -738,6 +739,14 @@ void KeyframeContainer::addParameter(const QPersistentModelIndex &index)
         }
         Q_EMIT addIndex(index);
         labelWidget = new QLabel(name, m_parent);
+        if (KdenliveSettings::storyAppearance() == QLatin1String("story")) {
+            const QFontMetrics metrics(labelWidget->font());
+            const int column = metrics.horizontalAdvance(i18n("Composition mode"));
+            if (metrics.horizontalAdvance(name) > column) {
+                labelWidget->setWordWrap(true);
+                labelWidget->setFixedWidth(column);
+            }
+        }
         auto pointWidget = new PointParamWidget(m_model, index, m_parent, point);
         connect(pointWidget, &PointParamWidget::valueChanged, this, [this](QModelIndex ix, QString v, bool) {
             Q_EMIT activateEffect();
