@@ -701,6 +701,12 @@ void KeyframeContainer::addParameter(const QPersistentModelIndex &index)
     QString comment = m_model->data(index, AssetParameterModel::CommentRole).toString();
     QString suffix = m_model->data(index, AssetParameterModel::SuffixRole).toString();
     auto type = m_model->data(index, AssetParameterModel::TypeRole).value<ParamType>();
+    const QString paramName = m_model->data(index, AssetParameterModel::NameRole).toString();
+    // qtblend's rotation anchor is a point. When it is tagged as a rect it builds a second
+    // Position/Size block on top of Transform.
+    if (paramName == QLatin1String("rotate_anchor") && (type == ParamType::AnimatedRect || type == ParamType::AnimatedFakeRect)) {
+        type = ParamType::AnimatedPoint;
+    }
 
     qDebug() << "::::::PARAM ADDED:" << name << static_cast<int>(type) << comment << suffix;
     // create KeyframeCurveEditor(s) which controls the current parameter
@@ -719,7 +725,6 @@ void KeyframeContainer::addParameter(const QPersistentModelIndex &index)
     // Construct object
     QLabel *labelWidget = nullptr;
     QWidget *paramWidget = nullptr;
-    QString paramName = m_model->data(index, AssetParameterModel::NameRole).toString();
     if (type == ParamType::AnimatedPoint || type == ParamType::AnimatedFakePoint) {
         int inPos = m_model->data(index, AssetParameterModel::ParentInRole).toInt();
         QPair<int, int> range(inPos, inPos + m_model->data(index, AssetParameterModel::ParentDurationRole).toInt());
@@ -1008,25 +1013,37 @@ void KeyframeContainer::applyStoryChrome(bool story)
         return;
     }
     m_storyChrome = story;
-    const QList<QAction *> extras = {m_copyAction, m_pasteAction};
+    const QList<QAction *> extras = {m_copyAction, m_pasteAction, m_centerAction, m_selectType};
     if (story) {
         for (QAction *action : extras) {
             if (action != nullptr) {
                 m_toolbar->removeAction(action);
             }
         }
-        m_time->setMinimumWidth(m_time->fontMetrics().horizontalAdvance(QStringLiteral("00:00:00:00")) + 16);
+        const int timeWidth = m_time->fontMetrics().horizontalAdvance(QStringLiteral("00:00:00:00")) + 14;
+        m_time->setFixedWidth(timeWidth);
         m_time->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
         m_toolbar->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+        m_toolbar->setStyleSheet(QStringLiteral("QToolBar { spacing: 1px; padding: 0px; border: none; background: transparent; }"
+                                                "QToolBar QToolButton { padding: 0px; margin: 0px; min-width: 18px; max-width: 22px;"
+                                                " min-height: 18px; max-height: 22px; }"));
+        m_viewswitch->setFixedSize(22, 22);
     } else {
-        for (QAction *action : extras) {
+        if (m_selectType != nullptr && m_toolbar->actions().indexOf(m_selectType) < 0) {
+            m_toolbar->addAction(m_selectType);
+        }
+        for (QAction *action : {m_centerAction, m_copyAction, m_pasteAction}) {
             if (action != nullptr && m_toolbar->actions().indexOf(action) < 0) {
                 m_toolbar->insertAction(m_selectType, action);
             }
         }
         m_time->setMinimumWidth(0);
+        m_time->setMaximumWidth(QWIDGETSIZE_MAX);
         m_time->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
         m_toolbar->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        m_toolbar->setStyleSheet(QString());
+        m_viewswitch->setMinimumSize(0, 0);
+        m_viewswitch->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
     }
 }
 

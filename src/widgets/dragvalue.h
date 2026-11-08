@@ -24,6 +24,7 @@ public:
     int valueFromText(const QString &text) const override;
     explicit MySpinBox(QWidget *parent = nullptr);
     bool blockWheel{false};
+    QLineEdit *editor() const { return lineEdit(); }
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -53,6 +54,7 @@ public:
     double valueFromText(const QString &text) const override;
     explicit MyDoubleSpinBox(QWidget *parent = nullptr);
     bool blockWheel{false};
+    QLineEdit *editor() const { return lineEdit(); }
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -224,4 +226,8 @@ private:
     KSelectAction *m_scale;
     QAction *m_directUpdate;
     CustomLabel *m_label{nullptr};
+    bool m_settingValue{false};
+    bool m_userTyping{false};
+    bool m_commitEmitted{false};
+    bool m_externalCommitPending{false};
 };

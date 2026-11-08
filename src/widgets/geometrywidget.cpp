@@ -79,7 +79,7 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     int posLabel = label->sizeHint().width();
     maxLabelWidth = posLabel;
     poslayout->addWidget(label);
-    poslayout->addSpacing(layout->horizontalSpacing() / 3);
+    poslayout->addSpacing(KdenliveSettings::storyAppearance() == QLatin1String("story") ? 6 : layout->horizontalSpacing() / 3);
     poslayout->addWidget(m_spinY);
     poslayout->addStretch(10);
     m_allWidgets << label;
@@ -107,14 +107,44 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     connect(m_spinHeight, &DragValue::customValueChanged, this, &GeometryWidget::slotAdjustRectHeight);
     m_spinHeight->setObjectName("spinH");
     QHBoxLayout *sizelayout = new QHBoxLayout;
+    sizelayout->setContentsMargins(0, 0, 0, 0);
+    poslayout->setContentsMargins(0, 0, 0, 0);
     sizelayout->addWidget(m_spinWidth);
-    sizelayout->addWidget(ratioButton);
     label = m_spinHeight->createLabel();
-    int sizeLabel = label->sizeHint().width() + ratioButton->sizeHint().width();
-    maxLabelWidth = qMax(maxLabelWidth, sizeLabel);
-    sizelayout->addWidget(label);
-    sizelayout->addSpacing(layout->horizontalSpacing() / 3);
-    sizelayout->addWidget(m_spinHeight);
+    QLabel *heightLabel = label;
+    QLabel *yLabel = nullptr;
+    for (QWidget *widget : std::as_const(m_allWidgets)) {
+        if (auto *candidate = qobject_cast<QLabel *>(widget)) {
+            if (candidate->text() == i18nc("y axis position", "Y")) {
+                yLabel = candidate;
+            }
+        }
+    }
+    const bool storyColumns = KdenliveSettings::storyAppearance() == QLatin1String("story");
+    int sizeLabel = 0;
+    if (storyColumns) {
+        const int sideWidth = qMax(yLabel == nullptr ? 0 : yLabel->sizeHint().width(), heightLabel->sizeHint().width());
+        if (yLabel != nullptr) {
+            yLabel->setFixedWidth(sideWidth);
+            yLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        }
+        heightLabel->setFixedWidth(sideWidth);
+        heightLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        // The lock used to sit between W and H, so the H column started later than Y.
+        sizelayout->addWidget(heightLabel);
+        sizelayout->addSpacing(6);
+        sizelayout->addWidget(m_spinHeight);
+        sizelayout->addWidget(ratioButton);
+        sizeLabel = sideWidth;
+        maxLabelWidth = qMax(maxLabelWidth, sizeLabel);
+    } else {
+        sizelayout->addWidget(ratioButton);
+        sizeLabel = label->sizeHint().width() + ratioButton->sizeHint().width();
+        maxLabelWidth = qMax(maxLabelWidth, sizeLabel);
+        sizelayout->addWidget(label);
+        sizelayout->addSpacing(layout->horizontalSpacing() / 3);
+        sizelayout->addWidget(m_spinHeight);
+    }
     sizelayout->addStretch(10);
     m_allWidgets << m_spinHeight;
     m_allWidgets << label;
@@ -212,12 +242,20 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     offset = qMax(offset, m_spinSize->sizeHint().width());
     maxLabelWidth += offset;
     if (story) {
-        const int boxWidth = qMax(88, QFontMetrics(parent->font()).horizontalAdvance(QStringLiteral("-100.00 %")) + 20);
-        const QList<DragValue *> paired = {m_spinX, m_spinY, m_spinWidth, m_spinHeight, m_spinSize, m_opacity};
+        const QFontMetrics metrics(parent->font());
+        const int pairWidth = qMax(72, metrics.horizontalAdvance(QStringLiteral("-0000")) + 18);
+        const int percentWidth = qMax(pairWidth, metrics.horizontalAdvance(QStringLiteral("-100.00 %")) + 18);
+        const QList<DragValue *> paired = {m_spinX, m_spinY, m_spinWidth, m_spinHeight};
         for (DragValue *spin : paired) {
             if (spin != nullptr) {
-                spin->setFixedWidth(boxWidth);
+                spin->setFixedWidth(pairWidth);
             }
+        }
+        if (m_spinSize != nullptr) {
+            m_spinSize->setFixedWidth(percentWidth);
+        }
+        if (m_opacity != nullptr) {
+            m_opacity->setFixedWidth(percentWidth);
         }
     }
     int diff = maxLabelWidth - posLabel;

@@ -253,6 +253,10 @@ void EffectStackView::dropEvent(QDropEvent *event)
 
 void EffectStackView::paintEvent(QPaintEvent *event)
 {
+    if (!m_model) {
+        QWidget::paintEvent(event);
+        return;
+    }
     if (dragRow == m_model->rowCount()) {
         QWidget::paintEvent(event);
         QPainter p(this);

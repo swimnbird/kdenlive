@@ -105,6 +105,7 @@ private:
     QLabel *m_storyHeading{nullptr};
     QAction *m_storyMoreAction{nullptr};
     bool m_storyHeader{false};
+    int m_stackTicket{0};
 
 private Q_SLOTS:
     void processSplitEffect(bool enable);

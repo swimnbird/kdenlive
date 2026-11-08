@@ -5,6 +5,7 @@
 
 #include "assetpanel.hpp"
 #include "core.h"
+#include "monitor/monitor.h"
 #include "definitions.h"
 #include "effects/effectsrepository.hpp"
 #include "effects/effectstack/model/effectitemmodel.hpp"
@@ -313,14 +314,35 @@ void AssetPanel::showEffectStack(const QString &itemName, const std::shared_ptr<
     }
     m_timelineButton->setVisible(enableKeyframes);
     m_timelineButton->setActive(showKeyframes);
-    m_effectStackWidget->setModel(effectsModel, frameSize);
-    if (KdenliveSettings::storyAppearance() == QLatin1String("story")) {
-        applyStoryHeader(true);
-    }
-    if (id.type == KdenliveObjectType::TimelineClip && KdenliveSettings::storyAppearance() == QLatin1String("story") &&
-        KdenliveSettings::enableBuiltInEffects()) {
-        m_effectStackWidget->expandBuiltInTransform();
-    }
+    // Planting the built-in transform while the timeline mouse release still holds the
+    // MLT service lock aborts in mlt_properties_get_data. Build the stack on the next turn.
+    const bool story = KdenliveSettings::storyAppearance() == QLatin1String("story");
+    const bool expandTransform = story && id.type == KdenliveObjectType::TimelineClip && KdenliveSettings::enableBuiltInEffects();
+    const int ticket = ++m_stackTicket;
+    // The timeline click seeks on the UI thread while it still owns the MLT service mutex.
+    // Pause first, then build the stack on a later turn so attach does not re-lock it.
+    QTimer::singleShot(0, this, [this, effectsModel, frameSize, story, expandTransform, ticket]() {
+        if (ticket != m_stackTicket || effectsModel == nullptr) {
+            return;
+        }
+        if (Monitor *monitor = pCore->getMonitor(Kdenlive::ProjectMonitor)) {
+            if (monitor->isPlaying()) {
+                monitor->pause();
+            }
+        }
+        QTimer::singleShot(50, this, [this, effectsModel, frameSize, story, expandTransform, ticket]() {
+            if (ticket != m_stackTicket || effectsModel == nullptr) {
+                return;
+            }
+            m_effectStackWidget->setModel(effectsModel, frameSize);
+            if (story) {
+                applyStoryHeader(true);
+            }
+            if (expandTransform) {
+                m_effectStackWidget->expandBuiltInTransform();
+            }
+        });
+    });
     m_maskManager->setOwner(id);
     if (m_showMaskPanel->isChecked()) {
         m_maskManager->setVisible(true);
@@ -385,6 +407,7 @@ void AssetPanel::clear()
     if (m_storyHeading != nullptr) {
         m_storyHeading->clear();
     }
+    ++m_stackTicket;
 }
 
 void AssetPanel::applyStoryHeader(bool story)

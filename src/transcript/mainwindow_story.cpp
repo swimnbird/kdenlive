@@ -44,6 +44,8 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QCoreApplication>
 #include <QDir>
 #include <QAbstractSpinBox>
+#include <QDoubleSpinBox>
+#include <QSpinBox>
 #include <QFile>
 #include <QFormLayout>
 #include <QLineEdit>
@@ -147,11 +149,20 @@ void applyStoryInspectorMetrics(QWidget *root, bool story)
             }
             // Height is applied with the parent row. A stylesheet min-height alone
             // paints outside DragValue's fixed row and collides with the toolbar.
-            // Wide enough for a signed percent value. A narrower box paints into the next field.
+            // Paired X/Y and W/H stay narrow enough to share a row. Percent fields are wider and sit alone.
             const QFontMetrics metrics = spin->fontMetrics();
-            const int textWidth = qMax(metrics.horizontalAdvance(QStringLiteral("-99000")),
-                                       metrics.horizontalAdvance(QStringLiteral("-100.00 %"))) +
-                                  18;
+            const QString holderName = spin->parentWidget() == nullptr ? QString() : spin->parentWidget()->objectName();
+            const bool paired = holderName == QLatin1String("spinX") || holderName == QLatin1String("spinY") || holderName == QLatin1String("spinW") ||
+                                holderName == QLatin1String("spinH");
+            QString suffix;
+            if (auto *integer = qobject_cast<QSpinBox *>(spin)) {
+                suffix = integer->suffix();
+            } else if (auto *real = qobject_cast<QDoubleSpinBox *>(spin)) {
+                suffix = real->suffix();
+            }
+            const bool percent = !paired && suffix.contains(QLatin1Char('%'));
+            const int textWidth = percent ? metrics.horizontalAdvance(QStringLiteral("-100.00 %")) + 18
+                                          : qMax(72, metrics.horizontalAdvance(QStringLiteral("-0000")) + 18);
             spin->setMinimumWidth(textWidth);
             spin->setMaximumWidth(textWidth);
             if (auto *drag = qobject_cast<DragValue *>(spin->parentWidget())) {

@@ -618,8 +618,38 @@ void CollapsibleEffectView::applyStoryChrome(bool story)
         title->setTextElideMode(story ? Qt::ElideNone : Qt::ElideRight);
         if (story) {
             title->setMinimumWidth(title->fontMetrics().horizontalAdvance(title->text()) + 8);
+            title->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
         } else if (!(m_model && m_model->getAssetId() == QLatin1String("qtblend"))) {
             title->setMinimumWidth(0);
+        }
+    }
+    if (frame != nullptr) {
+        frame->setStyleSheet(story ? QStringLiteral("QFrame#frame QToolButton {"
+                                                    "  padding: 0px;"
+                                                    "  margin: 0px;"
+                                                    "  min-width: 22px;"
+                                                    "  max-width: 22px;"
+                                                    "  min-height: 22px;"
+                                                    "  max-height: 22px;"
+                                                    "}"
+                                                    "QToolButton#storyEffectOverflow {"
+                                                    "  min-width: 44px;"
+                                                    "  max-width: 64px;"
+                                                    "  padding: 0px 6px;"
+                                                    "}")
+                                   : QString());
+    }
+    const QList<QToolButton *> kept = {collapseButton, enabledButton, buttonDel, m_storyOverflow};
+    for (QToolButton *button : kept) {
+        if (button == nullptr) {
+            continue;
+        }
+        if (story && button != m_storyOverflow) {
+            button->setFixedSize(22, 22);
+            button->setIconSize(QSize(16, 16));
+        } else if (!story && button != m_storyOverflow) {
+            button->setMinimumSize(0, 0);
+            button->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
         }
     }
     for (QToolButton *button : extras) {
@@ -632,8 +662,11 @@ void CollapsibleEffectView::applyStoryChrome(bool story)
                 button->setProperty("storyVisSaved", true);
             }
             button->setVisible(false);
+            button->setFixedSize(0, 0);
         } else if (button->property("storyVisSaved").toBool()) {
             button->setVisible(button->property("storyWasVisible").toBool());
+            button->setMinimumSize(0, 0);
+            button->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
             button->setProperty("storyVisSaved", false);
         }
     }
