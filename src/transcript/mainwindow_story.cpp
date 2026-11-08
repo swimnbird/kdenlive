@@ -31,7 +31,9 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <KSharedConfig>
 #include <KToolBar>
 #include "kddocksetup.h"
+#include "assets/assetpanel.hpp"
 #include "assets/view/assetparameterview.hpp"
+#include "assets/view/widgets/keyframecontainer.hpp"
 #include "effects/effectstack/view/collapsibleeffectview.hpp"
 #include "widgets/doublewidget.h"
 #include "widgets/dragvalue.h"
@@ -71,6 +73,12 @@ QString storyControlStyle()
         "QToolButton:checked { background: #3a3a42; color: #ffffff; border-color: #6a6a72; }"
         "QToolButton:disabled { color: #8e8e96; background: transparent; border-color: transparent; }"
         "QToolButton:focus { border-color: #8e8e96; }"
+        "QToolBar QToolButton {"
+        "  padding: 1px 4px;"
+        "  min-width: 22px;"
+        "  min-height: 22px;"
+        "  font-size: 11pt;"
+        "}"
         "QLineEdit, QComboBox {"
         "  background: #1c1c1f;"
         "  color: #f0f0f2;"
@@ -139,9 +147,16 @@ void applyStoryInspectorMetrics(QWidget *root, bool story)
             }
             // Height is applied with the parent row. A stylesheet min-height alone
             // paints outside DragValue's fixed row and collides with the toolbar.
-            const int textWidth = qMax(72, spin->fontMetrics().horizontalAdvance(QStringLiteral("0.00 %")) + 12);
+            // Wide enough for a signed percent value. A narrower box paints into the next field.
+            const QFontMetrics metrics = spin->fontMetrics();
+            const int textWidth = qMax(metrics.horizontalAdvance(QStringLiteral("-99000")),
+                                       metrics.horizontalAdvance(QStringLiteral("-100.00 %"))) +
+                                  18;
             spin->setMinimumWidth(textWidth);
-            spin->setMaximumWidth(textWidth + 4);
+            spin->setMaximumWidth(textWidth);
+            if (auto *drag = qobject_cast<DragValue *>(spin->parentWidget())) {
+                drag->setFixedWidth(textWidth);
+            }
             spin->setMinimumHeight(fieldHeight);
             spin->setMaximumHeight(fieldHeight);
             spin->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
@@ -150,6 +165,10 @@ void applyStoryInspectorMetrics(QWidget *root, bool story)
             spin->setMaximumWidth(QWIDGETSIZE_MAX);
             spin->setMinimumHeight(0);
             spin->setMaximumHeight(QWIDGETSIZE_MAX);
+            if (auto *drag = qobject_cast<DragValue *>(spin->parentWidget())) {
+                drag->setMinimumWidth(0);
+                drag->setMaximumWidth(QWIDGETSIZE_MAX);
+            }
         }
     }
     const auto sliders = root->findChildren<QWidget *>(QStringLiteral("draggLabel"));
@@ -220,6 +239,17 @@ void applyStoryInspectorMetrics(QWidget *root, bool story)
     }
     for (CollapsibleEffectView *effect : effects) {
         effect->updateHeight();
+    }
+    const auto keyframes = root->findChildren<KeyframeContainer *>();
+    for (KeyframeContainer *ruler : keyframes) {
+        ruler->applyStoryChrome(story);
+    }
+    AssetPanel *panel = qobject_cast<AssetPanel *>(root);
+    if (panel == nullptr) {
+        panel = root->findChild<AssetPanel *>();
+    }
+    if (panel != nullptr) {
+        panel->applyStoryHeader(story);
     }
 }
 

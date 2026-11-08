@@ -7,9 +7,11 @@
 #include "core.h"
 #include "doublewidget.h"
 #include "dragvalue.h"
+#include "kdenlivesettings.h"
 #include "monitor/monitor.h"
 
 #include <KLocalizedString>
+#include <QFontMetrics>
 #include <QFormLayout>
 #include <QLabel>
 #include <QPoint>
@@ -176,20 +178,28 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     m_allWidgets << m_spinSize;
     int opacityLabel = 0;
 
+    const bool story = KdenliveSettings::storyAppearance() == QLatin1String("story");
+    QLabel *opacityRowLabel = nullptr;
     if (useOpacity) {
         m_opacity = new DragValue(i18n("Opacity"), 100, 0, 0, 100, -1, i18n("%"), false, false, parent, true);
         m_opacity->setDataProviderCallback(dataProviderCallback);
         m_opacity->setValue((int)(opacity * m_opacityFactor));
         connect(m_opacity, &DragValue::customValueChanged, this, [&]() { Q_EMIT valueChanged(getValue(), 4, m_frameForRect); });
         m_opacity->setObjectName("spinO");
-        label = m_opacity->createLabel();
-        opacityLabel = label->sizeHint().width();
-        maxLabelWidth = qMax(maxLabelWidth, opacityLabel);
-        scaleLayout->addWidget(label);
-        scaleLayout->addSpacing(layout->horizontalSpacing() / 3);
-        scaleLayout->addWidget(m_opacity);
         m_allWidgets << m_opacity;
-        m_allWidgets << label;
+        if (story) {
+            // Scale and Opacity are both percent fields. One row lets them paint over each other.
+            opacityRowLabel = m_opacity->createLabel();
+            m_allWidgets << opacityRowLabel;
+        } else {
+            label = m_opacity->createLabel();
+            opacityLabel = label->sizeHint().width();
+            maxLabelWidth = qMax(maxLabelWidth, opacityLabel);
+            scaleLayout->addWidget(label);
+            scaleLayout->addSpacing(layout->horizontalSpacing() / 3);
+            scaleLayout->addWidget(m_opacity);
+            m_allWidgets << label;
+        }
     }
     scaleLayout->addStretch(10);
     maxLabelWidth += layout->horizontalSpacing() / 3;
@@ -201,15 +211,24 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     int offset = qMax(m_spinX->sizeHint().width(), m_spinWidth->sizeHint().width());
     offset = qMax(offset, m_spinSize->sizeHint().width());
     maxLabelWidth += offset;
+    if (story) {
+        const int boxWidth = qMax(88, QFontMetrics(parent->font()).horizontalAdvance(QStringLiteral("-100.00 %")) + 20);
+        const QList<DragValue *> paired = {m_spinX, m_spinY, m_spinWidth, m_spinHeight, m_spinSize, m_opacity};
+        for (DragValue *spin : paired) {
+            if (spin != nullptr) {
+                spin->setFixedWidth(boxWidth);
+            }
+        }
+    }
     int diff = maxLabelWidth - posLabel;
-    if (diff > 0) {
+    if (!story && diff > 0) {
         poslayout->insertSpacing(1, diff);
     }
     label = m_spinX->createLabel();
     layout->addRow(label, poslayout);
     m_allWidgets << label;
     diff = maxLabelWidth - sizeLabel;
-    if (diff > 0) {
+    if (!story && diff > 0) {
         sizelayout->insertSpacing(1, diff);
     }
     label = m_spinWidth->createLabel();
@@ -221,13 +240,19 @@ GeometryWidget::GeometryWidget(Monitor *monitor, QPair<int, int> range, const QR
     m_allWidgets << label;
     if (opacityLabel > 0) {
         diff = maxLabelWidth - opacityLabel;
-        if (diff > 0) {
+        if (!story && diff > 0) {
             scaleLayout->insertSpacing(1, diff);
         }
     }
     label = m_spinSize->createLabel();
     layout->addRow(label, scaleLayout);
     m_allWidgets << label;
+    if (opacityRowLabel != nullptr && m_opacity != nullptr) {
+        auto *opacityRow = new QHBoxLayout;
+        opacityRow->addWidget(m_opacity);
+        opacityRow->addStretch(1);
+        layout->addRow(opacityRowLabel, opacityRow);
+    }
 
     slotUpdateGeometryRect(rect);
     slotAdjustRectKeyframeValue();

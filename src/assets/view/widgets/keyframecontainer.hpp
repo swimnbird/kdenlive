@@ -47,6 +47,8 @@ public:
     /** @brief Show / hide keyframe related widgets
      */
     void showKeyframes(bool enable);
+    /** @brief Keep the keyframe timecode from being covered by toolbar buttons. */
+    void applyStoryChrome(bool story);
     /** @brief Returns true if keyframes options are visible
      */
     bool keyframesVisible() const;
@@ -125,6 +127,7 @@ private:
     SceneType::MonitorSceneType m_neededScene;
     bool m_monitorActive{false};
     bool m_isRelative{false};
+    bool m_storyChrome{false};
     QSize m_sourceFrameSize;
     void connectMonitor(bool active);
     void setDuration(int duration);

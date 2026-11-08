@@ -43,6 +43,7 @@
 #include <QMenu>
 #include <QPointer>
 #include <QStackedWidget>
+#include <QSizePolicy>
 #include <QStyle>
 #include <QTabWidget>
 #include <QToolButton>
@@ -999,6 +1000,34 @@ SceneType::MonitorSceneType KeyframeContainer::requiredScene() const
 bool KeyframeContainer::keyframesVisible() const
 {
     return m_editorviewcontainer->isVisible();
+}
+
+void KeyframeContainer::applyStoryChrome(bool story)
+{
+    if (m_toolbar == nullptr || m_time == nullptr || m_storyChrome == story) {
+        return;
+    }
+    m_storyChrome = story;
+    const QList<QAction *> extras = {m_copyAction, m_pasteAction};
+    if (story) {
+        for (QAction *action : extras) {
+            if (action != nullptr) {
+                m_toolbar->removeAction(action);
+            }
+        }
+        m_time->setMinimumWidth(m_time->fontMetrics().horizontalAdvance(QStringLiteral("00:00:00:00")) + 16);
+        m_time->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        m_toolbar->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    } else {
+        for (QAction *action : extras) {
+            if (action != nullptr && m_toolbar->actions().indexOf(action) < 0) {
+                m_toolbar->insertAction(m_selectType, action);
+            }
+        }
+        m_time->setMinimumWidth(0);
+        m_time->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        m_toolbar->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    }
 }
 
 void KeyframeContainer::showKeyframes(bool enable)

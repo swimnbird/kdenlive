@@ -378,6 +378,7 @@ CollapsibleEffectView::CollapsibleEffectView(const QString &effectName, const st
         cb->installEventFilter(this);
         cb->setFocusPolicy(Qt::StrongFocus);
     }
+    applyStoryChrome(KdenliveSettings::storyAppearance() == QLatin1String("story"));
     QMetaObject::invokeMethod(this, "slotSwitch", Qt::QueuedConnection, Q_ARG(bool, m_model->isCollapsed()));
 }
 
@@ -579,7 +580,62 @@ void CollapsibleEffectView::applyStoryChrome(bool story)
             heading.setPointSizeF(12);
         }
         title->setFont(heading);
-        title->setMinimumWidth(story ? title->fontMetrics().horizontalAdvance(title->text()) + 12 : 0);
+        title->setMinimumWidth(0);
+        title->setSizePolicy(story ? QSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred)
+                                    : QSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Preferred));
+    }
+    if (story && frame != nullptr && title != nullptr) {
+        frame->setMinimumHeight(qMax(title->sizeHint().height(), collapseButton->sizeHint().height()) + 6);
+    }
+    if (m_storyOverflow == nullptr && frame != nullptr) {
+        m_storyOverflow = new QToolButton(frame);
+        m_storyOverflow->setObjectName(QStringLiteral("storyEffectOverflow"));
+        m_storyOverflow->setText(i18n("More"));
+        m_storyOverflow->setToolTip(i18n("More effect actions"));
+        m_storyOverflow->setPopupMode(QToolButton::InstantPopup);
+        m_storyOverflow->setAutoRaise(true);
+        auto *menu = new QMenu(m_storyOverflow);
+        const QList<QToolButton *> extras = {keyframesButton, inOutButton, presetButton, infoButton, buttonUp, buttonDown};
+        for (QToolButton *button : extras) {
+            if (button == nullptr) {
+                continue;
+            }
+            const QString label = button->toolTip().isEmpty() ? button->text() : button->toolTip();
+            QAction *action = menu->addAction(button->icon(), label);
+            connect(action, &QAction::triggered, button, &QAbstractButton::click);
+        }
+        m_storyOverflow->setMenu(menu);
+        if (auto *row = qobject_cast<QHBoxLayout *>(frame->layout())) {
+            const int delIndex = row->indexOf(buttonDel);
+            row->insertWidget(delIndex < 0 ? row->count() : delIndex, m_storyOverflow);
+        }
+    }
+    if (m_storyOverflow != nullptr) {
+        m_storyOverflow->setVisible(story);
+    }
+    const QList<QToolButton *> extras = {keyframesButton, inOutButton, presetButton, infoButton, buttonUp, buttonDown};
+    if (title != nullptr) {
+        title->setTextElideMode(story ? Qt::ElideNone : Qt::ElideRight);
+        if (story) {
+            title->setMinimumWidth(title->fontMetrics().horizontalAdvance(title->text()) + 8);
+        } else if (!(m_model && m_model->getAssetId() == QLatin1String("qtblend"))) {
+            title->setMinimumWidth(0);
+        }
+    }
+    for (QToolButton *button : extras) {
+        if (button == nullptr) {
+            continue;
+        }
+        if (story) {
+            if (!button->property("storyVisSaved").toBool()) {
+                button->setProperty("storyWasVisible", button->isVisible());
+                button->setProperty("storyVisSaved", true);
+            }
+            button->setVisible(false);
+        } else if (button->property("storyVisSaved").toBool()) {
+            button->setVisible(button->property("storyWasVisible").toBool());
+            button->setProperty("storyVisSaved", false);
+        }
     }
     if (auto *row = qobject_cast<QHBoxLayout *>(frame->layout())) {
         for (int i = 0; i < row->count(); ++i) {
@@ -907,8 +963,12 @@ void CollapsibleEffectView::slotSwitch(bool collapse)
     zoneFrame->setFixedHeight(collapse || !m_inOutButton->isChecked() ? 0 : frame->height());
     setFixedHeight(widgetFrame->height() + border_frame->minimumHeight() + frame->minimumHeight() + zoneFrame->height());
     m_model->setCollapsed(collapse);
-    keyframesButton->setVisible(!collapse);
-    inOutButton->setVisible(!collapse);
+    const bool story = KdenliveSettings::storyAppearance() == QLatin1String("story");
+    keyframesButton->setVisible(!collapse && !story);
+    inOutButton->setVisible(!collapse && !story && m_model->getOwnerId().type != KdenliveObjectType::TimelineClip);
+    if (story) {
+        applyStoryChrome(true);
+    }
     Q_EMIT switchHeight(m_model, height());
 }
 

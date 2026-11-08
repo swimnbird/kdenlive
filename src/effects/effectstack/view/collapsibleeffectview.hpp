@@ -149,6 +149,7 @@ private:
     QColor m_activeColor;
     QColor m_activeColorTitle;
     bool m_isActive{false};
+    QToolButton *m_storyOverflow{nullptr};
 
 protected:
     void mouseDoubleClickEvent(QMouseEvent *event) override;
